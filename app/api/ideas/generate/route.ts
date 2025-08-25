@@ -23,12 +23,7 @@ function sampleRandom<T>(arr: readonly T[], n: number): T[] {
   return a.slice(0, n);
 }
 
-type RequestBody = {
-  random?: boolean;
-  mood?: string;
-  outcome?: string;
-  party?: string;
-};
+type RequestBody = { random?: boolean; mood?: string; outcome?: string; party?: string };
 
 function parseBody(body: unknown): Required<RequestBody> {
   const d = { random: false, mood: "", outcome: "", party: "" };
@@ -44,31 +39,21 @@ function parseBody(body: unknown): Required<RequestBody> {
 
 export async function POST(req: Request) {
   let json: unknown;
-  try {
-    json = await req.json();
-  } catch {
-    json = undefined;
-  }
+  try { json = await req.json(); } catch { json = undefined; }
   const { random, mood, outcome, party } = parseBody(json);
 
   if (random || (!mood && !outcome && !party)) {
     return new Response(JSON.stringify({ ideas: sampleRandom(POOL, 6) }), {
-      headers: { "content-type": "application/json" },
-      status: 200,
+      headers: { "content-type": "application/json" }, status: 200,
     });
   }
 
   let list = POOL;
   if (mood === "outdoor") list = list.filter((x) => x.tags.includes("outdoor"));
-  if (mood === "indoor") list = list.filter((x) => x.tags.includes("indoor"));
-
-  if (list.length < 6) {
-    const fill = sampleRandom(POOL, 6 - list.length);
-    list = [...list, ...fill];
-  }
+  if (mood === "indoor")  list = list.filter((x) => x.tags.includes("indoor"));
+  if (list.length < 6) list = [...list, ...sampleRandom(POOL, 6 - list.length)];
 
   return new Response(JSON.stringify({ ideas: sampleRandom(list, 6) }), {
-    headers: { "content-type": "application/json" },
-    status: 200,
+    headers: { "content-type": "application/json" }, status: 200,
   });
 }

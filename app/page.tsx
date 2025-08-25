@@ -7,17 +7,8 @@ import { Bookmark, Clock, Shuffle } from "lucide-react";
 type Idea = { id: string; title: string; tags?: string[]; duration?: number };
 
 const TAG_LABELS: Record<string, string> = {
-  indoor: "屋内",
-  outdoor: "屋外",
-  kids: "子ども向け",
-  craft: "工作",
-  nature: "自然",
-  free: "無料",
-  relax: "リラックス",
-  learning: "学び",
-  budget: "低予算",
-  walk: "散歩",
-  refresh: "リフレッシュ",
+  indoor: "屋内", outdoor: "屋外", kids: "子ども向け", craft: "工作", nature: "自然",
+  free: "無料", relax: "リラックス", learning: "学び", budget: "低予算", walk: "散歩", refresh: "リフレッシュ",
 };
 
 export default function Home() {
@@ -35,25 +26,18 @@ export default function Home() {
   }, []);
 
   async function fetchIdeas(body: Record<string, unknown>): Promise<void> {
-    setLoading(true);
-    setError(null);
-    setIdeas([]);
+    setLoading(true); setError(null); setIdeas([]);
     try {
       const res = await fetch("/api/ideas/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        cache: "no-store",
+        method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("APIエラー: " + res.status);
       const json = (await res.json()) as { ideas?: Idea[] };
       setIdeas(json.ideas ?? []);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
+      setError(e instanceof Error ? e.message : String(e));
+    } finally { setLoading(false); }
   }
 
   async function onRandomClick() {
@@ -76,65 +60,48 @@ export default function Home() {
   function toggleBookmark(item: Idea) {
     const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
     const idx = list.findIndex((x) => x.id === item.id);
-    if (idx === -1) list.push(item);
-    else list.splice(idx, 1);
+    if (idx === -1) list.push(item); else list.splice(idx, 1);
     localStorage.setItem("bookmarks", JSON.stringify(list));
-    const nextIds = new Set(list.map((x) => x.id));
-    setBookmarkedIds(nextIds);
+    setBookmarkedIds(new Set(list.map((x) => x.id)));
     setBookmarkCount(list.length);
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-emerald-50 to-teal-50 text-gray-900">
-      {/* ヒーロー */}
+      {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 py-14 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">今日なにする？</h1>
         <p className="mx-auto mt-4 max-w-2xl text-gray-700">
           気分と目的を選ぶか、ランダムにおまかせ。あなたに合う「やってみたい」が、すぐに見つかります。
         </p>
-
-        {/* 等幅ボタン */}
         <div className="mt-7 flex items-center justify-center gap-3">
-        {/* ランダム（等幅・改行禁止） */}
-        <button
-          onClick={onRandomClick}
-          className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-          title="ランダムに提案を受け取る"
-        >
-          <Shuffle className="h-5 w-5" />
-          ランダム
-        </button>
-
-        {/* タイムライン（等幅・改行禁止） */}
-        <Link
-          href="/plan"
-          className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-300 bg-white px-6 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-          title="タイムラインへ"
-        >
-          <Clock className="h-5 w-5" />
-          タイムライン
-          {bookmarkCount > 0 && (
-            <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
-              {bookmarkCount}
-            </span>
-          )}
-        </Link>
-      </div>
+          <button
+            onClick={onRandomClick}
+            className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            <Shuffle className="h-5 w-5" /> ランダム
+          </button>
+          <Link
+            href="/plan"
+            className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-300 bg-white px-6 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          >
+            <Clock className="h-5 w-5" /> タイムライン
+            {bookmarkCount > 0 && (
+              <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
+                {bookmarkCount}
+              </span>
+            )}
+          </Link>
+        </div>
       </section>
 
       {/* 条件フォーム */}
-      <section
-        id="plan"
-        className="mx-auto mb-10 max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-8 shadow-sm"
-      >
+      <section id="plan" className="mx-auto mb-10 max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-8 shadow-sm">
         <form ref={formRef} onSubmit={onSubmit} className="grid gap-5">
+          {/* selects …（省略せず使ってOK） */}
           <label className="grid gap-1">
             <span className="text-sm font-medium">得たいこと</span>
-            <select
-              name="outcome"
-              defaultValue=""
-              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            >
+            <select name="outcome" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
               <option value="smile">笑顔になりたい</option>
               <option value="refresh">リフレッシュしたい</option>
@@ -142,27 +109,17 @@ export default function Home() {
               <option value="achievement">達成感ほしい</option>
             </select>
           </label>
-
           <label className="grid gap-1">
             <span className="text-sm font-medium">気分</span>
-            <select
-              name="mood"
-              defaultValue=""
-              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            >
+            <select name="mood" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
               <option value="outdoor">屋外でアクティブ</option>
               <option value="indoor">屋内でのんびり</option>
             </select>
           </label>
-
           <label className="grid gap-1">
             <span className="text-sm font-medium">誰と？</span>
-            <select
-              name="party"
-              defaultValue=""
-              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            >
+            <select name="party" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
               <option value="solo">ひとり</option>
               <option value="family">家族</option>
@@ -171,31 +128,20 @@ export default function Home() {
             </select>
           </label>
 
-          <button
-            type="submit"
-            className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
-            disabled={loading}
-          >
+          <button type="submit" className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60">
             {loading ? "考え中…" : "考える"}
           </button>
 
-          <Link
-            href="/plan"
-            className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
-            title="タイムラインへ"
-          >
-            <Clock className="h-5 w-5" />
-            タイムライン
+          <Link href="/plan" className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <Clock className="h-5 w-5" /> タイムライン
             {bookmarkCount > 0 && (
-              <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
+              <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
                 {bookmarkCount}
               </span>
             )}
           </Link>
 
-          {error && (
-            <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">{error}</p>}
         </form>
       </section>
 
@@ -213,19 +159,14 @@ export default function Home() {
                   {jaTags.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {jaTags.map((t) => (
-                        <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">
-                          {t}
-                        </span>
+                        <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">{t}</span>
                       ))}
                     </div>
                   )}
                   <div className="mt-4 flex gap-2">
                     <button
                       onClick={() => toggleBookmark(i)}
-                      className={
-                        "rounded-full border p-2 hover:bg-gray-50 " +
-                        (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")
-                      }
+                      className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
                       aria-pressed={active}
                       title={active ? "ブックマーク済み" : "ブックマーク"}
                     >
@@ -240,9 +181,7 @@ export default function Home() {
             })}
           </ul>
         )}
-        {!loading && ideas.length === 0 && (
-          <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>
-        )}
+        {!loading && ideas.length === 0 && <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>}
       </section>
     </main>
   );
