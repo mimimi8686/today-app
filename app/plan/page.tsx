@@ -5,6 +5,21 @@ import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Trash2, Clock, Home } from "lucide-react";
 
+// 既存 import/型の下あたり
+const [newTitle, setNewTitle] = useState("");
+const [newDuration, setNewDuration] = useState<number>(60);
+
+function addCustomItem() {
+  const title = newTitle.trim();
+  const dur = Math.max(5, Math.min(Number.isFinite(newDuration) ? newDuration : 60, 600));
+  if (!title) return;
+  const item = { id: crypto.randomUUID(), title, duration: dur } as Item;
+  setItems((prev) => [...prev, item]);
+  setNewTitle("");
+  setNewDuration(60);
+}
+
+
 type Item = { id: string; title: string; duration?: number; tags?: string[] };
 
 function minutesToHHMM(total: number) {
@@ -108,6 +123,35 @@ export default function PlanPage() {
           <button onClick={clearAll} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">すべてクリア</button>
           <span className="ml-auto text-sm text-gray-600">合計 {totalMinutes}分 ／ 終了 {endTime}</span>
         </div>
+
+        {/* 追加：自由入力カード */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_140px_120px]">
+          <input
+            type="text"
+            placeholder="やることを入力（例：スーパーで買い出し）"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="rounded-lg border px-3 py-2"
+          />
+          <label className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">所要（分）</span>
+            <input
+              type="number"
+              min={5}
+              max={600}
+              value={newDuration}
+              onChange={(e) => setNewDuration(Number(e.target.value))}
+              className="w-24 rounded-lg border px-2 py-2"
+            />
+          </label>
+          <button
+            onClick={addCustomItem}
+            className="rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white hover:bg-emerald-700"
+          >
+            追加
+          </button>
+        </div>
+
 
         {items.length === 0 ? (
           <p className="mt-6 text-sm text-gray-500">まだブックマークがありません。TOPで「ブックマーク」してから戻ってきてね。</p>
