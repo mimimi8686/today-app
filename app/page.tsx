@@ -1,103 +1,255 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Bookmark, Clock, Shuffle } from "lucide-react";
+
+type Idea = { id: string; title: string; tags?: string[]; duration?: number };
+
+// 英語タグ→日本語ラベル
+const TAG_JA: Record<string, string> = {
+  outdoor: "屋外",
+  indoor: "屋内",
+  kids: "子ども",
+  craft: "工作",
+  nature: "自然",
+  free: "無料",
+  relax: "リラックス",
+  learning: "学び",
+  budget: "節約",
+  walk: "散歩",
+  refresh: "リフレッシュ",
+};
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  const [bookmarkCount, setBookmarkCount] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  useEffect(() => {
+    const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
+    setBookmarkedIds(new Set(list.map((x) => x.id)));
+    setBookmarkCount(list.length);
+  }, []);
+
+  async function fetchIdeas(body: any) {
+    setLoading(true);
+    setError(null);
+    setIdeas([]);
+    try {
+      const res = await fetch("/api/ideas/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("APIエラー: " + res.status);
+      const json = await res.json();
+      setIdeas(json.ideas ?? []);
+    } catch (e: any) {
+      setError(e?.message ?? "不明なエラー");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onRandomClick() {
+    await fetchIdeas({ random: true });
+    document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    const payload = {
+      outcome: data.get("outcome") || "",
+      mood: data.get("mood") || "",
+      party: data.get("party") || "",
+    };
+    await fetchIdeas(payload);
+    document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function toggleBookmark(item: Idea) {
+    const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
+    const idx = list.findIndex((x) => x.id === item.id);
+    if (idx === -1) list.push(item);
+    else list.splice(idx, 1);
+    localStorage.setItem("bookmarks", JSON.stringify(list));
+    const nextIds = new Set(list.map((x) => x.id));
+    setBookmarkedIds(nextIds);
+    setBookmarkCount(list.length);
+  }
+
+  return (
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-indigo-50 to-white text-slate-900">
+      {/* ヒーロー */}
+      <section className="mx-auto max-w-6xl px-6 py-14 text-center">
+        <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">今日なにする？</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-slate-700">
+          気分と目的を選ぶか、ランダムにおまかせ。あなたに合う「やってみたい」が、すぐに見つかります。
+        </p>
+
+        <div className="mt-7 flex items-center justify-center gap-3">
+          {/* ランダム */}
+          <button
+            onClick={onRandomClick}
+            className="inline-flex w-44 sm:w-48 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            title="ランダムに提案を受け取る"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
+            <Shuffle className="h-5 w-5" />
+            ランダム
+          </button>
+
+          {/* タイムライン（等幅に） */}
           <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/plan"
+            className="inline-flex w-44 sm:w-48 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-6 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            title="タイムラインへ"
           >
-            Read our docs
+            <Clock className="h-5 w-5" />
+            タイムライン
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </section>
+
+      {/* 条件フォーム（指定なし対応） */}
+      <section
+        id="plan"
+        className="mx-auto mb-10 max-w-xl rounded-2xl border border-slate-200 bg-white px-6 py-8 shadow-sm"
+      >
+        <form ref={formRef} onSubmit={onSubmit} className="grid gap-5">
+          <label className="grid gap-1">
+            <span className="text-sm font-medium">得たいこと</span>
+            <select
+              name="outcome"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">指定なし</option>
+              <option value="smile">笑顔になりたい</option>
+              <option value="refresh">リフレッシュしたい</option>
+              <option value="learning">学びたい</option>
+              <option value="achievement">達成感ほしい</option>
+            </select>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-sm font-medium">気分</span>
+            <select
+              name="mood"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">指定なし</option>
+              <option value="outdoor">屋外でアクティブ</option>
+              <option value="indoor">屋内でのんびり</option>
+            </select>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-sm font-medium">誰と？</span>
+            <select
+              name="party"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              <option value="">指定なし</option>
+              <option value="solo">ひとり</option>
+              <option value="family">家族</option>
+              <option value="partner">パートナー</option>
+              <option value="friends">友人</option>
+            </select>
+          </label>
+
+          {/* 考える */}
+          <button
+            type="submit"
+            className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:opacity-60"
+            disabled={loading}
+          >
+            {loading ? "考え中…" : "考える"}
+          </button>
+
+          {/* フォーム下のタイムライン（同幅）＋バッジ */}
+          <a
+            href="/plan"
+            className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-3 font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            title="タイムラインへ"
+          >
+            <Clock className="h-5 w-5" />
+            タイムライン
+            {bookmarkCount > 0 && (
+              <span className="ml-2 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-indigo-600 px-1 text-xs text-white">
+                {bookmarkCount}
+              </span>
+            )}
+          </a>
+
+          {error && (
+            <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">{error}</p>
+          )}
+        </form>
+      </section>
+
+      {/* 結果カード（タグ=日本語で表示） */}
+      <section id="results" className="mx-auto max-w-4xl px-6 pb-16">
+        {ideas.length > 0 && (
+          <ul className="grid gap-4 md:grid-cols-2">
+            {ideas.map((i) => {
+              const active = bookmarkedIds.has(i.id);
+              return (
+                <li
+                  key={i.id}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow"
+                >
+                  <h3 className="text-lg font-semibold">{i.title}</h3>
+                  {/* タグ（日本語） */}
+                  {i.tags?.length ? (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {i.tags.map((t) => (
+                        <span
+                          key={t}
+                          className="text-xs rounded-full border border-slate-300 bg-indigo-50 px-2.5 py-1 text-indigo-800"
+                        >
+                          {TAG_JA[t] ?? t}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-sm text-slate-600">所要目安：{i.duration ?? 60}分</p>
+
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => toggleBookmark(i)}
+                      className={
+                        "rounded-full border p-2 hover:bg-slate-50 " +
+                        (active ? "border-indigo-400 bg-indigo-50 text-indigo-700" : "")
+                      }
+                      aria-pressed={active}
+                      title={active ? "ブックマーク済み" : "ブックマーク"}
+                    >
+                      <Bookmark className="h-5 w-5" />
+                    </button>
+                    <a
+                      href="/plan"
+                      className="rounded-full border p-2 hover:bg-slate-50"
+                      title="タイムラインで見る"
+                    >
+                      <Clock className="h-5 w-5" />
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {!loading && ideas.length === 0 && (
+          <p className="text-sm text-slate-600">「ランダム」か「考える」で候補を表示します。</p>
+        )}
+      </section>
+    </main>
   );
 }
