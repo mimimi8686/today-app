@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import Link from "next/link";
+import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Trash2, Clock, Home } from "lucide-react";
 
 type Item = { id: string; title: string; duration?: number; tags?: string[] };
@@ -15,16 +16,27 @@ function minutesToHHMM(total: number) {
 export default function PlanPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [startTime, setStartTime] = useState("09:00");
+  const [loaded, setLoaded] = useState(false); // ← 初回ロード完了フラグ
 
+  // 初回ロード：localStorage → state（壊れてても落ちない）
   useEffect(() => {
-    const raw = localStorage.getItem("bookmarks");
-    const list: Item[] = raw ? JSON.parse(raw) : [];
-    setItems(list.map((x) => ({ ...x, duration: x.duration ?? 60 })));
+    try {
+      const raw = localStorage.getItem("bookmarks");
+      const list: Item[] = raw ? JSON.parse(raw) : [];
+      setItems(list.map((x) => ({ ...x, duration: x.duration ?? 60 })));
+    } catch {
+      localStorage.removeItem("bookmarks");
+      setItems([]);
+    } finally {
+      setLoaded(true);
+    }
   }, []);
 
+  // 以後の変更だけ保存（初回は書き込まない）
   useEffect(() => {
+    if (!loaded) return;
     localStorage.setItem("bookmarks", JSON.stringify(items));
-  }, [items]);
+  }, [items, loaded]);
 
   const totalMinutes = useMemo(
     () => items.reduce((sum, it) => sum + (it.duration ?? 0), 0),
@@ -48,7 +60,7 @@ export default function PlanPage() {
     return minutesToHHMM(h * 60 + m + totalMinutes);
   }, [startTime, totalMinutes]);
 
-  function handleDrag(result: any) {
+  function handleDrag(result: DropResult) {
     if (!result.destination) return;
     const next = Array.from(items);
     const [moved] = next.splice(result.source.index, 1);
@@ -83,14 +95,14 @@ export default function PlanPage() {
       {/* ヘッダー */}
       <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
-          <a
+          <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white"
             title="TOPへ"
           >
             <Home className="h-5 w-5" />
             <span className="hidden sm:inline">TOP</span>
-          </a>
+          </Link>
           <div className="flex items-center gap-3 text-sm text-gray-700">
             <div className="hidden md:flex items-center gap-1">
               <Clock className="h-4 w-4 text-emerald-600" />
@@ -104,7 +116,7 @@ export default function PlanPage() {
 
       {/* コントロール */}
       <section className="mx-auto max-w-5xl px-6 py-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+        <h1 className="text-2xl font-bold flex items中心 gap-2">
           <Clock className="h-6 w-6 text-emerald-600" />
           今日のタイムライン
         </h1>
@@ -115,22 +127,26 @@ export default function PlanPage() {
             <input
               type="time"
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value || "09:00";
+                if (!/^\d{2}:\d{2}$/.test(v)) return;
+                setStartTime(v);
+              }}
               className="ml-2 rounded-lg border px-2 py-1"
             />
           </label>
-            <button onClick={sortByDurationAsc} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
-              自動並べ替え（短い順）
-            </button>
-            <button onClick={clearAll} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
-              すべてクリア
-            </button>
+          <button onClick={sortByDurationAsc} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
+            自動並べ替え（短い順）
+          </button>
+          <button onClick={clearAll} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
+            すべてクリア
+          </button>
           <span className="ml-auto text-sm text-gray-600">
             合計 {totalMinutes}分 ／ 終了 {endTime}
           </span>
         </div>
 
-        {/* 3カラム：時刻 / タイトル / 所要＆削除（DnD対応） */}
+        {/* シンプル3カラム（DnD） */}
         {items.length === 0 ? (
           <p className="mt-6 text-sm text-gray-500">
             まだブックマークがありません。TOPで「ブックマーク」してから戻ってきてね。
@@ -141,7 +157,7 @@ export default function PlanPage() {
               {(provided) => (
                 <ul {...provided.droppableProps} ref={provided.innerRef} className="mt-6 grid gap-4">
                   {timeline.map((it, idx) => (
-                    <Draggable key={it.id} draggableId={it.id} index={idx}>
+                    <Draggable key={String(it.id)} draggableId={String(it.id)} index={idx}>
                       {(prov) => (
                         <li
                           ref={prov.innerRef}
@@ -149,17 +165,12 @@ export default function PlanPage() {
                           {...prov.dragHandleProps}
                           className="grid gap-2 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:grid-cols-[120px_1fr_160px]"
                         >
-                          {/* 時刻 */}
                           <div className="text-sm text-gray-600 md:self-center">
                             {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
                           </div>
-
-                          {/* タイトル（※タグは表示しない） */}
                           <div>
                             <h3 className="font-semibold">{it.title}</h3>
                           </div>
-
-                          {/* 所要・削除 */}
                           <div className="flex items-center justify-end gap-2">
                             <label className="text-xs text-gray-600">
                               所要（分）

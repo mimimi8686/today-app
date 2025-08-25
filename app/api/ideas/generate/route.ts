@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 
 type Idea = { id: string; title: string; tags: string[]; duration: number };
 
-// ざっくりプール（必要に応じて増やしてOK）
 const POOL: Idea[] = [
   { id: "1", title: "ベランダ水遊び×氷アート", tags: ["indoor","kids","craft"], duration: 30 },
   { id: "2", title: "近所の公園でどんぐり探しビンゴ", tags: ["outdoor","nature","free"], duration: 60 },
@@ -15,8 +14,7 @@ const POOL: Idea[] = [
   { id: "8", title: "夕方さんぽで空の色集め", tags: ["outdoor","walk"], duration: 40 },
 ];
 
-// シャッフル関数
-function sampleRandom<T>(arr: T[], n: number) {
+function sampleRandom<T>(arr: readonly T[], n: number): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -25,34 +23,52 @@ function sampleRandom<T>(arr: T[], n: number) {
   return a.slice(0, n);
 }
 
+type RequestBody = {
+  random?: boolean;
+  mood?: string;
+  outcome?: string;
+  party?: string;
+};
+
+function parseBody(body: unknown): Required<RequestBody> {
+  const d = { random: false, mood: "", outcome: "", party: "" };
+  if (typeof body !== "object" || body === null) return d;
+  const o = body as Record<string, unknown>;
+  return {
+    random: typeof o.random === "boolean" ? o.random : false,
+    mood: typeof o.mood === "string" ? o.mood : "",
+    outcome: typeof o.outcome === "string" ? o.outcome : "",
+    party: typeof o.party === "string" ? o.party : "",
+  };
+}
+
 export async function POST(req: Request) {
-  let body: any = {};
-  try { body = await req.json(); } catch {}
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    json = undefined;
+  }
+  const { random, mood, outcome, party } = parseBody(json);
 
-  const { random = false, mood = "", outcome = "", party = "" } = body ?? {};
-
-  // ランダム or 指定なし（全部「」）なら、プールからランダムで返す
   if (random || (!mood && !outcome && !party)) {
-    return new Response(
-      JSON.stringify({ ideas: sampleRandom(POOL, 6) }),
-      { headers: { "content-type": "application/json" }, status: 200 }
-    );
+    return new Response(JSON.stringify({ ideas: sampleRandom(POOL, 6) }), {
+      headers: { "content-type": "application/json" },
+      status: 200,
+    });
   }
 
-  // ざっくりフィルタ（必要に応じて拡張）
   let list = POOL;
   if (mood === "outdoor") list = list.filter((x) => x.tags.includes("outdoor"));
-  if (mood === "indoor")  list = list.filter((x) => x.tags.includes("indoor"));
-  // outcome / party は将来タグ設計次第で拡張
+  if (mood === "indoor") list = list.filter((x) => x.tags.includes("indoor"));
 
-  // 候補が少なければランダム補完
   if (list.length < 6) {
-    const fallback = sampleRandom(POOL, 6 - list.length);
-    list = [...list, ...fallback];
+    const fill = sampleRandom(POOL, 6 - list.length);
+    list = [...list, ...fill];
   }
 
-  return new Response(
-    JSON.stringify({ ideas: sampleRandom(list, 6) }),
-    { headers: { "content-type": "application/json" }, status: 200 }
-  );
+  return new Response(JSON.stringify({ ideas: sampleRandom(list, 6) }), {
+    headers: { "content-type": "application/json" },
+    status: 200,
+  });
 }
