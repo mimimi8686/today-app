@@ -167,7 +167,7 @@ export default function PlanPage() {
         <input
           id="new-title"
           type="text"
-          placeholder="やること（例：スーパーで買い出し）"
+          placeholder="やること（例：ランチ）"
           value={newTitle}
           onChange={(e) => setNewTitle(e.target.value)}
           className="h-10 w-full min-w-0 rounded-md border px-3"
