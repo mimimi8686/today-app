@@ -143,7 +143,7 @@ export default function PlanPage() {
         </div>
 
        {/* 開始時刻＋追加項目＋所要時間：共通ラベル列で左揃え */}
-        <div className="mt-3 grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-2">
+        <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
         {/* 行1：開始時刻 */}
         <label htmlFor="start-time" className="text-sm text-gray-700">
           開始時刻：
