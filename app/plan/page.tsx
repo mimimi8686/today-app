@@ -197,37 +197,14 @@ async function copyTimelineAsText() {
             <Clock className="h-6 w-6 text-emerald-600" />
             今日のタイムライン
           </h1>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={async () => {
-                if (items.length === 0) { alert("タイムラインが空です"); return; }
-                const t = encodePlan({ items, startTime });
-                const url = `${location.origin}/plan?t=${t}`;
-                await navigator.clipboard.writeText(url);
-                alert("共有リンクをコピーしました！");
-              }}
-              className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 hover:bg-sky-100"
-            >
-              共有リンク
-            </button>
-
-            <button
-              onClick={copyTimelineAsText}
-              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-700 hover:bg-gray-50"
-            >
-              コピペ
-            </button>
-
-            <button
-              onClick={clearAll}
-              className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
-            >
-              すべてクリア
-            </button>
-          </div>
+          <button
+            onClick={clearAll}
+            className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+            title="全部消す"
+          >
+            すべてクリア
+          </button>
         </div>
-
 
        {/* 開始時刻＋追加項目＋所要時間：共通ラベル列で左揃え */}
         <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
@@ -285,7 +262,7 @@ async function copyTimelineAsText() {
         </div>
 
 
-        {/* タイムライン（主役。カードは少しだけ詰める） */}
+        {/* タイムライン（主役） */}
         {items.length === 0 ? (
           <p className="mt-6 text-sm text-gray-500">
             まだブックマークや予定がありません。TOPで🔖するか、上で追加してね。
@@ -309,16 +286,14 @@ async function copyTimelineAsText() {
                             {...prov.dragHandleProps}
                             className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                           >
-                            {/* 時刻（少し強調） */}
+                            {/* 時刻ピル */}
                             <div className="text-sm font-medium">
                               <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
                                 {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
                               </span>
                             </div>
-
                             {/* タイトル */}
                             <h3 className="mt-0.5 text-lg font-semibold">{it.title}</h3>
-
                             {/* 操作 */}
                             <div className="mt-2 flex items-center justify-end gap-3">
                               <label className="text-xs text-gray-600">
@@ -347,7 +322,7 @@ async function copyTimelineAsText() {
                     {provided.placeholder}
                   </ul>
 
-                  {/* 終了フッター（カードの後ろ） */}
+                  {/* 終了フッター（カードの後） */}
                   <div className="mt-6 flex items-center">
                     <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
                     <div className="mx-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700">
@@ -362,6 +337,37 @@ async function copyTimelineAsText() {
             </Droppable>
           </DragDropContext>
         )}
+
+        {/* 共有フッター（常に表示） */}
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="mt-8 flex flex-wrap items-center justify-end gap-3 sm:justify-between">
+            <div className="hidden sm:block text-sm text-gray-500">
+              共有して友だちと一緒に計画しよう
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  if (items.length === 0) { alert("タイムラインが空です"); return; }
+                  const t = encodePlan({ items, startTime });
+                  const url = `${location.origin}/plan?t=${t}`;
+                  await navigator.clipboard.writeText(url);
+                  alert("共有リンクをコピーしました！");
+                }}
+                className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sky-700 hover:bg-sky-100"
+                title="共有リンクをコピー"
+              >
+                共有
+              </button>
+              <button
+                onClick={copyTimelineAsText}
+                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                title="テキストでコピー"
+              >
+                コピー
+              </button>
+            </div>
+          </div>
+        </div>
       </section>
 
     </main>
