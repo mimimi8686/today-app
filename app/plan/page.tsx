@@ -86,10 +86,6 @@ export default function PlanPage() {
     setItems(items.filter((_, i) => i !== index));
   }
 
-  function sortByDurationAsc() {
-    setItems((prev) => [...prev].sort((a, b) => (a.duration ?? 0) - (b.duration ?? 0)));
-  }
-
   function clearAll() {
     setItems([]);
     localStorage.setItem("bookmarks", JSON.stringify([]));
@@ -155,9 +151,6 @@ export default function PlanPage() {
               className="ml-2 rounded-lg border px-2 py-1"
             />
           </label>
-          <button onClick={sortByDurationAsc} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
-            自動並べ替え（短い順）
-          </button>
           <button onClick={clearAll} className="text-sm rounded-lg border px-3 py-1.5 hover:bg-white">
             すべてクリア
           </button>
