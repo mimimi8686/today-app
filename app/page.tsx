@@ -14,7 +14,7 @@ const TAG_LABELS: Record<string, string> = {
 export default function Home() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
-  const [limit, setLimit] = useState(6);
+  const PAGE_SIZE = 6; // 1ページの取得件数s
   const [offset, setOffset] = useState(0);           // 非ランダム用
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set()); // ランダム用
   const [hasMore, setHasMore] = useState(false);
@@ -28,6 +28,11 @@ export default function Home() {
     title: string;
     durationMin: number;
     tags: string[];
+  };
+  type ApiResponse = {
+    ideas?: Idea[];
+    hasMore?: boolean;
+    total?: number;
   };
   // "place:indoor" -> "indoor" のように名前空間を外す
   function stripNs(tag: string) {
@@ -70,14 +75,13 @@ export default function Home() {
         cache: "no-store",
         body: JSON.stringify({
           ...body,
-          limit,
-          offset: append ? offset : 0,   // 非ランダム用（random:falseのとき有効）
-          excludeIds,                    // ランダム用（random:trueのとき有効）
+          limit: PAGE_SIZE,        // ← 定数化
+          offset: append ? offset : 0,
+          excludeIds: append ? Array.from(seenIds) : [],
         }),
       });
       if (!res.ok) throw new Error("APIエラー: " + res.status);
-      const json = await res.json() as { ideas?: any[]; hasMore?: boolean };
-  
+      const json: ApiResponse = await res.json();
       const next = json.ideas ?? [];
   
       if (append) {
