@@ -72,7 +72,7 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-14 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">今日なにする？</h1>
         <p className="mx-auto mt-4 max-w-2xl text-gray-700">
-          気分と目的を選ぶか、ランダムにおまかせ。あなたに合う「やってみたい」が、すぐに見つかります。
+          気分や目的を選ぶか、ランダムにおまかせ。今日のあなたにぴったりなプランを見つけよう。
         </p>
         <div className="mt-7 flex items-center justify-center gap-3">
           <button

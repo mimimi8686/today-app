@@ -1,0 +1,21 @@
+[
+    {
+      "id": "a1",
+      "title": "科学館で体験エリア巡り",
+      "tags": ["indoor", "learning", "kids"],
+      "duration": 90
+    },
+    {
+      "id": "a2",
+      "title": "河川敷サイクリング",
+      "tags": ["outdoor", "refresh"],
+      "duration": 120
+    },
+    {
+      "id": "a3",
+      "title": "商店街で食べ歩き",
+      "tags": ["outdoor", "food"],
+      "duration": 60
+    }
+  ]
+  

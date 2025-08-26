@@ -179,11 +179,11 @@ async function copyTimelineAsText() {
             <span className="hidden sm:inline">TOP</span>
           </Link>
           {/* 右上の要約ピル */}
-          <div className="flex items-center gap-2 text-xs sm:text-sm">
-            <span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 border border-emerald-200">
-              合計 {totalMinutes}分
+          <div className="flex items-center justify-end gap-2 px-6">
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+              開始 {startTime}
             </span>
-            <span className="rounded-full bg-sky-50 text-sky-700 px-3 py-1 border border-sky-200">
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
               終了 {endTime}
             </span>
           </div>
@@ -342,7 +342,7 @@ async function copyTimelineAsText() {
         <div className="mx-auto max-w-5xl px-6">
           <div className="mt-8 flex flex-wrap items-center justify-end gap-3 sm:justify-between">
             <div className="hidden sm:block text-sm text-gray-500">
-              共有して友だちと一緒に計画しよう
+              共有して友だちと一緒に計画しよう！
             </div>
             <div className="flex items-center gap-2">
               <button
