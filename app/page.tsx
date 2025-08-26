@@ -14,6 +14,14 @@ const TAG_LABELS: Record<string, string> = {
 export default function Home() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
+  const [limit, setLimit] = useState(6);
+  const [offset, setOffset] = useState(0);           // 非ランダム用
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set()); // ランダム用
+  const [hasMore, setHasMore] = useState(false);
+  // 直近の検索条件を保持（もっと見る で再利用）
+  const [lastQuery, setLastQuery] = useState<Record<string, unknown>>({});
+
+
     // APIの1件分
   type IdeaFromApi = {
     id: string;
@@ -49,20 +57,50 @@ export default function Home() {
     setBookmarkCount(list.length);
   }, []);
 
-  async function fetchIdeas(body: Record<string, unknown>): Promise<void> {
-    setLoading(true); setError(null); setIdeas([]);
+  async function fetchIdeas(body: Record<string, unknown>, append = false): Promise<void> {
+    setLoading(true); setError(null);
+  
+    // 追加読み込み：ランダム時の重複を避けるため excludeIds を送る
+    const excludeIds = append ? Array.from(seenIds) : [];
+  
     try {
       const res = await fetch("/api/ideas/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...body,
+          limit,
+          offset: append ? offset : 0,   // 非ランダム用（random:falseのとき有効）
+          excludeIds,                    // ランダム用（random:trueのとき有効）
+        }),
       });
       if (!res.ok) throw new Error("APIエラー: " + res.status);
-      const json = await res.json();
-      const apiIdeas = (json.ideas ?? []) as IdeaFromApi[];
-      const uiIdeas = apiIdeas.map(toUiIdea); // ★ここでUI型に変換
-      setIdeas(uiIdeas);
+      const json = await res.json() as { ideas?: any[]; hasMore?: boolean };
+  
+      const next = json.ideas ?? [];
+  
+      if (append) {
+        // 既存に追加（重複は一応弾く）
+        setIdeas(prev => {
+          const exists = new Set(prev.map(x => x.id));
+          const add = next.filter(x => !exists.has(x.id));
+          return [...prev, ...add];
+        });
+        setSeenIds(prev => {
+          const s = new Set(prev);
+          next.forEach(x => s.add(x.id));
+          return s;
+        });
+        setOffset(prev => prev + next.length);
+      } else {
+        // 初回 or 条件変更時はリセット
+        setIdeas(next);
+        setSeenIds(new Set(next.map(x => x.id)));
+        setOffset(next.length);
+      }
+  
+      setHasMore(!!json.hasMore);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -70,23 +108,27 @@ export default function Home() {
     }
   }
   
-
   async function onRandomClick() {
-    await fetchIdeas({ random: true });
+    const q = { random: true };
+    setLastQuery(q);
+    await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-
+  
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    const payload = {
+    const q = {
       outcome: (data.get("outcome") as string) || "",
       mood: (data.get("mood") as string) || "",
       party: (data.get("party") as string) || "",
+      random: false, // 並び順固定で出したい場合
     };
-    await fetchIdeas(payload);
+    setLastQuery(q);
+    await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
+
 
   function toggleBookmark(item: Idea) {
     const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
@@ -191,61 +233,63 @@ export default function Home() {
       </section>
 
       {/* 結果カード（タグ=日本語表示） */}
-      <section id="results" className="mx-auto max-w-4xl px-6 pb-16">
-        {ideas.length > 0 && (
-          <ul className="grid gap-4 md:grid-cols-2">
-            {ideas.map((i) => {
-              const active = bookmarkedIds.has(i.id);
-              const jaTags = (i.tags ?? []).map((t) => TAG_LABELS[t] ?? t);
-              return (
-                <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
-                  <h3 className="text-lg font-semibold">{i.title}</h3>
-                  <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
-                  {jaTags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {jaTags.map((t) => (
-                        <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">{t}</span>
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      onClick={() => toggleBookmark(i)}
-                      className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
-                      aria-pressed={active}
-                      title={active ? "ブックマーク済み" : "ブックマーク"}
-                    >
-                      <Bookmark className="h-5 w-5" />
-                    </button>
-                    <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
-                      <Clock className="h-5 w-5" />
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {/* 表示中の候補をタイムラインへ（ブックマークに保存してから遷移） */}
-          {ideas.length > 0 && (
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => {
-                  // いま表示中の候補を bookmarks に保存してから /plan へ
-                  localStorage.setItem(
-                    "bookmarks",
-                    JSON.stringify(ideas.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60, tags: i.tags })))
-                  );
-                  location.href = "/plan";
-                }}
-                className="rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700"
-              >
-                表示中の候補をタイムラインで見る
-              </button>
-            </div>
-          )} 
-        {!loading && ideas.length === 0 && <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>}
-      </section>
+<section id="results" className="mx-auto max-w-4xl px-6 pb-16">
+  {ideas.length > 0 && (
+    <>
+      <ul className="grid gap-4 md:grid-cols-2">
+        {ideas.map((i) => {
+          const active = bookmarkedIds.has(i.id);
+          const jaTags = (i.tags ?? []).map((t) => TAG_LABELS[t] ?? t);
+          return (
+            <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
+              <h3 className="text-lg font-semibold">{i.title}</h3>
+              <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
+
+              {jaTags.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {jaTags.map((t) => (
+                    <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => toggleBookmark(i)}
+                  className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
+                  aria-pressed={active}
+                  title={active ? "ブックマーク済み" : "ブックマーク"}
+                >
+                  <Bookmark className="h-5 w-5" />
+                </button>
+                <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
+                  <Clock className="h-5 w-5" />
+                </Link>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* もっと見る */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={() => fetchIdeas(lastQuery, true)}   // append=true（追加読み込み）
+          disabled={!hasMore || loading}
+          className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {hasMore ? "もっと見る" : "これ以上ありません"}
+        </button>
+      </div>
+    </>
+  )}
+
+  {!loading && ideas.length === 0 && (
+    <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>
+  )}
+</section>
     </main>
   );
 }

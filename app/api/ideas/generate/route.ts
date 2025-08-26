@@ -36,6 +36,8 @@ type RequestBody = {
   outcome?: string;
   party?: "solo" | "family" | "partner" | "friends";
   tags?: string[];
+  offset?: number;          // 非ランダム時のページング用（何件目から返すか）
+  excludeIds?: string[];    // 既に表示済みのID（ランダム時の重複除外用）
 };
 
 // --- ユーティリティ ---
@@ -121,6 +123,10 @@ export async function POST(req: Request) {
   const random: boolean = !!body.random;
   const limit: number = Math.max(1, Math.min(Number(body.limit) || 6, 50));
 
+   // ★ ここを追加
+   const offset: number = Math.max(0, Number(body.offset) || 0);
+   const excludeIds: string[] = Array.isArray(body.excludeIds) ? body.excludeIds : [];
+
   // 追加分：フォーム値から AND 条件にするタグを作成
   const requiredTags = bodyToRequiredTags(body);
 
@@ -142,17 +148,31 @@ export async function POST(req: Request) {
       pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
     }
   }
+  // ★ ここを追加：クライアントですでに表示したIDは除外（重複防止）
+  if (excludeIds.length) {
+    const ex = new Set(excludeIds);
+    pool = pool.filter(it => !ex.has(it.id));
+  }
 
-  // ランダム or 先頭
-  const items = random
-    ? sampleRandom(pool, Math.min(limit, pool.length))
-    : pool.slice(0, limit);
+  // ランダム or 先頭からのスライス（ページング）
+  let ideas: Idea[] = [];
+  let hasMore = false;
 
-  return Response.json({ ideas: items });
-}
+  if (random) {
+    // ランダムは「重複除外済みプール」から抽選 → まだ残っていれば hasMore
+    const count = Math.min(limit, pool.length);
+    ideas = sampleRandom(pool, count);
+    hasMore = pool.length > count;
+  } else {
+    // 非ランダムは offset/limit でページング
+    const end = Math.min(offset + limit, pool.length);
+    ideas = pool.slice(offset, end);
+    hasMore = end < pool.length;
+  }
 
-// GET（動作確認用）
-export async function GET() {
-  const items = sampleRandom(ACTIVITIES, Math.min(6, ACTIVITIES.length));
-  return Response.json({ ideas: items });
+  return Response.json({
+    ideas,
+    hasMore,          // ← 次があるかどうか
+    total: pool.length + ideas.length, // 除外前の全件イメージが必要なら調整可
+  });
 }
