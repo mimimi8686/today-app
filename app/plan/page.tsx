@@ -159,36 +159,50 @@ export default function PlanPage() {
           </label>
         </div>
 
-        {/* 入力行：横並び1行（スマホでは自動で折り返し） */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px_120px]">
-        {/* 1行目：タイトル */}
-        <input
-          type="text"
-          placeholder="やること（例：スーパーで買い出し）"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          className="h-10 rounded-md border px-3"
-        />
-
-        {/* 2行目：所要＋追加（モバイル時は横並び・sm以上ではグリッドの2/3列に展開） */}
-        <div className="flex gap-2 sm:contents">
-          <input
-            type="number"
-            min={5}
-            max={600}
-            value={newDuration}
-            onChange={(e) => setNewDuration(Number(e.target.value))}
-            className="h-10 w-[120px] rounded-md border px-2 sm:w-auto"
-            placeholder="所要（分）"
-          />
-          <button
-            onClick={addCustomItem}
-            className="h-10 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+        {/* 入力ブロック：ラベル列（左 110px）＋入力列（右） */}
+        <div className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr] sm:items-center">
+          {/* 追加項目 */}
+          <label
+            htmlFor="new-title"
+            className="text-sm text-gray-700 sm:justify-self-start"
           >
-            追加
-          </button>
+            追加項目：
+          </label>
+          <input
+            id="new-title"
+            type="text"
+            placeholder="やること（例：スーパーで買い出し）"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="h-10 rounded-md border px-3"
+          />
+
+        {/* 所要時間＋追加ボタン（横並び） */}
+          <label
+            htmlFor="new-duration"
+            className="text-sm text-gray-700 sm:justify-self-start"
+          >
+            所要時間：
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="new-duration"
+              type="number"
+              min={5}
+              max={600}
+              value={newDuration}
+              onChange={(e) => setNewDuration(Number(e.target.value))}
+              className="h-10 w-28 rounded-md border px-2"
+              placeholder="分"
+            />
+            <button
+              onClick={addCustomItem}
+              className="h-10 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+            >
+              追加
+            </button>
+          </div>
         </div>
-      </div>
 
         {/* タイムライン（主役。カードは少しだけ詰める） */}
         {items.length === 0 ? (

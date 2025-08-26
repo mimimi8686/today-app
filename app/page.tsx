@@ -110,15 +110,14 @@ export default function Home() {
               <option value="learning">学びたい</option>
               <option value="achievement">達成感ほしい</option>
               <option value="relax">リラックスしたい・癒されたい</option>
-              <option value="budget">低予算で</option>
-              <option value="walk">散歩したい</option>
+              <option value="budget">低予算で過ごしたい</option>
               <option value="nature">自然と触れたい</option>
-              <option value="craft">工作したい</option>
+              <option value="hobby">趣味を見つけたい</option>
               <option value="experience">体験したい</option>
-              <option value="health">健康になりたい</option>
+              <option value="health">体にいいことをしたい</option>
               <option value="luxury">贅沢したい</option>
               <option value="art">アート・文学に触れたい</option>
-              <option value="clean">すっきりしたい</option>
+              <option value="clean">綺麗にしたい</option>
               <option value="talk">話のネタをつくりたい</option>
             </select>
           </label>
@@ -126,8 +125,10 @@ export default function Home() {
             <span className="text-sm font-medium">気分</span>
             <select name="mood" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
-              <option value="outdoor">屋外でアクティブ</option>
-              <option value="indoor">屋内でのんびり</option>
+              <option value="outdoor">屋外</option>
+              <option value="indoor">屋内</option>
+              <option value="relax">のんびり</option>
+              <option value="active">アクティブ</option>
             </select>
           </label>
           <label className="grid gap-1">
