@@ -22,11 +22,75 @@ export default function PlanPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDuration, setNewDuration] = useState<number>(60);
 
+// URLに入れる安全なBase64(JSON)エンコード/デコード
+function encodePlan(data: unknown) {
+  const json = JSON.stringify(data);
+  const b64 = typeof window === "undefined"
+    ? Buffer.from(json).toString("base64")
+    : btoa(unescape(encodeURIComponent(json)));
+  // URL-safe
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodePlan(b64: string) {
+  try {
+    const s = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const json = typeof window === "undefined"
+      ? Buffer.from(s, "base64").toString()
+      : decodeURIComponent(escape(atob(s)));
+    return JSON.parse(json);
+  } catch { return null; }
+}
+
+// コピペ用テキスト生成＆コピー
+async function copyTimelineAsText() {
+  if (timeline.length === 0) {
+    alert("タイムラインが空です");
+    return;
+  }
+  const lines: string[] = [];
+  lines.push(`今日のタイムライン（開始 ${startTime} / 終了 ${endTime} / 合計 ${totalMinutes}分）`);
+  for (const it of timeline) {
+    const from = minutesToHHMM(it.from!);
+    const to = minutesToHHMM(it.to!);
+    const dur = it.duration ?? 0;
+    lines.push(`- ${from} → ${to}\t${it.title}（${dur}分）`);
+  }
+  const text = lines.join("\n");
+
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("タイムラインをコピーしました（テキスト）");
+  } catch {
+    // クリップボード不可環境フォールバック
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert("タイムラインをコピーしました（テキスト）");
+  }
+}
+
+
   // 初回ロード：localStorage → state
   useEffect(() => {
     try {
       const raw = localStorage.getItem("bookmarks");
       const list: Item[] = raw ? JSON.parse(raw) : [];
+      // 共有リンク（?t=...）があればそれを優先読み込み
+      const q = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const encoded = q?.get("t");
+      if (encoded) {
+        const payload = decodePlan(encoded) as { items?: Item[]; startTime?: string } | null;
+        if (payload?.items?.length) {
+          setItems(payload.items.map(x => ({ ...x, duration: x.duration ?? 60 })));
+          if (payload.startTime) setStartTime(payload.startTime);
+          history.replaceState(null, "", window.location.pathname); // URLをクリーンに
+          setLoaded(true);
+          return; // localStorage 読み込みはスキップ
+        }
+      }
       setItems(list.map((x) => ({ ...x, duration: x.duration ?? 60 })));
     } catch {
       localStorage.removeItem("bookmarks");
@@ -133,14 +197,37 @@ export default function PlanPage() {
             <Clock className="h-6 w-6 text-emerald-600" />
             今日のタイムライン
           </h1>
-          <button
-            onClick={clearAll}
-            className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
-            title="全部消す"
-          >
-            すべてクリア
-          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (items.length === 0) { alert("タイムラインが空です"); return; }
+                const t = encodePlan({ items, startTime });
+                const url = `${location.origin}/plan?t=${t}`;
+                await navigator.clipboard.writeText(url);
+                alert("共有リンクをコピーしました！");
+              }}
+              className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-700 hover:bg-sky-100"
+            >
+              共有リンク
+            </button>
+
+            <button
+              onClick={copyTimelineAsText}
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-700 hover:bg-gray-50"
+            >
+              コピペ
+            </button>
+
+            <button
+              onClick={clearAll}
+              className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+            >
+              すべてクリア
+            </button>
+          </div>
         </div>
+
 
        {/* 開始時刻＋追加項目＋所要時間：共通ラベル列で左揃え */}
         <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
