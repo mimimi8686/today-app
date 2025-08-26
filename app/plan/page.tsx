@@ -181,7 +181,8 @@ export default function PlanPage() {
             <Home className="h-5 w-5" />
             <span className="hidden sm:inline">TOP</span>
           </Link>
-          <div className="flex items-center justify-end gap-2 px-6">
+          {/* 右上の要約ピル → px-6を削除して右端にそろえる */}
+          <div className="flex items-center justify-end gap-2">
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
               開始 {startTime}
             </span>
@@ -191,7 +192,6 @@ export default function PlanPage() {
           </div>
         </div>
       </header>
-
       <section className="mx-auto max-w-5xl px-6 py-6">
         {/* タイトル行：左=見出し / 右=すべてクリア */}
         <div className="flex items-center justify-between gap-2">
