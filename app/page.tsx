@@ -222,7 +222,27 @@ export default function Home() {
           <button type="submit" className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60">
             {loading ? "考え中…" : "考える"}
           </button>
+          {/* 👇この「クリア」ボタンを追加（考えるボタンの直後） */}
+          <button
+            type="button"
+            onClick={() => {
+              // フォームの選択をリセット（selectの値を初期値へ）
+              formRef.current?.reset();
 
+              // 候補エリアとページング状態もクリア
+              setIdeas([]);
+              setLastQuery({});
+              setOffset(0);
+              setSeenIds(new Set());
+              setHasMore(false);
+
+              // エラー表示・ローディングも念のためクリア
+              setError(null);
+            }}
+            className="w-full sm:w-auto min-w-40 rounded-xl border border-gray-300 bg-white px-5 py-3 text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200"
+          >
+            クリア
+          </button>
           <Link href="/plan" className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200">
             <Clock className="h-5 w-5" /> タイムライン
             {bookmarkCount > 0 && (
