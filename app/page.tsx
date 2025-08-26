@@ -185,22 +185,23 @@ export default function Home() {
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-    function clearFilters() {
-      // フォームの値（select）をリセット
-      formRef.current?.reset();
-    
-      // 一覧・状態をリセット
-      setIdeas([]);
-      setHasMore(false);
-      setOffset(0);
-      setSeenIds(new Set());
-      setLastQuery({});
-      setError(null);
-    
-      // 画面内スクロール位置を戻すなら（任意）
-      // document.getElementById("plan")?.scrollIntoView({ behavior: "smooth" });
-    }
-  
+    // フォームと結果、タイムライン（localStorage）もまとめてクリア
+  function resetFiltersAndResults() {
+    // 1) フォーム（select）を初期化
+    formRef.current?.reset();
+
+    // 2) 表示中の候補カードを消す
+    setIdeas([]);
+    setHasMore(false);
+    setOffset(0);
+    setSeenIds(new Set());
+    setLastQuery({});
+
+    // 3) タイムライン（ブックマーク）も削除
+    localStorage.setItem("bookmarks", JSON.stringify([]));
+    setBookmarkedIds(new Set());  // 画面右上のバッジ用
+    setBookmarkCount(0);
+}
   function handleClearForm() {
     // フォームの入力を初期化
     formRef.current?.reset();
@@ -317,12 +318,14 @@ export default function Home() {
           </Link>
 
           <button
-            type="button"
-            onClick={clearFilters}
-            className="mt-3 w-full sm:w-auto text-sm text-gray-600 underline hover:text-gray-800"
+          type="button"
+            onClick={resetFiltersAndResults}
+            className="mx-auto mt-2 block text-sm text-gray-600 underline hover:text-gray-800"
+            title="選択した条件と結果をクリアし、タイムラインも空にします"
           >
             選択をクリア
           </button>
+
           {error && <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">{error}</p>}
         </form>
       </section>
