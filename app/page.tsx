@@ -9,6 +9,12 @@ type Idea = { id: string; title: string; tags?: string[]; duration?: number };
 // 名前空間タグを日本語ラベルに変換
 const TAG_LABELS: Record<string, string> = {
   // dur 系
+  "dur:15m": "15分",
+  "dur:30m": "30分",
+  "dur:45m": "45分",
+  "dur:60m": "60分",
+  "dur:90m": "90分",
+  "dur:120m": "120分",
   "dur:halfday": "半日",
   "dur:fullday": "1日",
 
@@ -205,71 +211,31 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-emerald-50 to-teal-50 text-gray-900">
-      {/* …省略（Heroとフォーム部分はそのまま）… */}
-
-      {/* 結果カード */}
-      <section id="results" className="mx-auto max-w-4xl px-6 pb-16">
-        {ideas.length > 0 && (
-          <>
-            <ul className="grid gap-4 md:grid-cols-2">
-              {ideas.map((i) => {
-                const active = bookmarkedIds.has(i.id);
-                const jaTags = (i.tags ?? [])
-                  .filter((t) => !t.startsWith("dur:"))   // ★ 所要時間タグを除外
-                  .map((t) => TAG_LABELS[t] ?? t);        // 日本語化
-
-                return (
-                  <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
-                    <h3 className="text-lg font-semibold">{i.title}</h3>
-                    <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
-
-                    {jaTags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {jaTags.map((t) => (
-                          <span
-                            key={t}
-                            className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        onClick={() => toggleBookmark(i)}
-                        className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
-                        aria-pressed={active}
-                        title={active ? "ブックマーク済み" : "ブックマーク"}
-                      >
-                        <Bookmark className="h-5 w-5" />
-                      </button>
-                      <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
-                        <Clock className="h-5 w-5" />
-                      </Link>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {/* もっと見る */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={() => fetchIdeas(lastQuery, true)}
-                disabled={!hasMore || loading}
-                className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {hasMore ? "もっと見る" : "これ以上ありません"}
-              </button>
-            </div>
-          </>
-        )}
-
-        {!loading && ideas.length === 0 && (
-          <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>
-        )}
+      {/* Hero */}
+      <section className="mx-auto max-w-6xl px-6 py-14 text-center">
+        <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">今日なにする？</h1>
+        <p className="mx-auto mt-4 max-w-2xl text-gray-700">
+          気分や目的を選ぶか、ランダムにおまかせ。今日のあなたにぴったりなプランを見つけよう。
+        </p>
+        <div className="mt-7 flex items-center justify-center gap-3">
+          <button
+            onClick={onRandomClick}
+            className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-emerald-600 px-6 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            <Shuffle className="h-5 w-5" /> ランダム
+          </button>
+          <Link
+            href="/plan"
+            className="inline-flex w-52 sm:w-56 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-emerald-300 bg-white px-6 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          >
+            <Clock className="h-5 w-5" /> タイムライン
+            {bookmarkCount > 0 && (
+              <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
+                {bookmarkCount}
+              </span>
+            )}
+          </Link>
+        </div>
       </section>
 
       {/* 条件フォーム */}
@@ -334,6 +300,7 @@ export default function Home() {
               </span>
             )}
           </Link>
+
           <button
               type="button"
             onClick={handleClearForm}
