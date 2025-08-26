@@ -142,61 +142,61 @@ export default function PlanPage() {
           </button>
         </div>
 
-        {/* サブツールバー：開始時刻（最下位・コンパクト） */}
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-700">
-          <label className="inline-flex items-center gap-2">
-            開始時刻：
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => {
-                const v = e.target.value || "09:00";
-                if (!/^\d{2}:\d{2}$/.test(v)) return;
-                setStartTime(v);
-              }}
-              className="h-9 rounded-md border px-2"
-            />
-          </label>
-        </div>
+       {/* 開始時刻＋追加項目＋所要時間：共通ラベル列で左揃え */}
+        <div className="mt-3 grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-2">
+        {/* 行1：開始時刻 */}
+        <label htmlFor="start-time" className="text-sm text-gray-700">
+          開始時刻：
+        </label>
+        <input
+          id="start-time"
+          type="time"
+          value={startTime}
+          onChange={(e) => {
+            const v = e.target.value || "09:00";
+            if (!/^\d{2}:\d{2}$/.test(v)) return;
+            setStartTime(v);
+          }}
+          className="h-10 w-[110px] rounded-md border px-2"
+        />
 
-        {/* 入力ブロック：ラベル列＋入力列（常に2行） */}
-        <div className="mt-3 grid grid-cols-[100px_1fr] items-center gap-y-2 gap-x-2">
-          {/* 1行目：追加項目 */}
-          <label htmlFor="new-title" className="text-sm text-gray-700">
-            追加項目：
-          </label>
+        {/* 行2：追加項目 */}
+        <label htmlFor="new-title" className="text-sm text-gray-700">
+          追加項目：
+        </label>
+        <input
+          id="new-title"
+          type="text"
+          placeholder="やること（例：スーパーで買い出し）"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          className="h-10 w-full min-w-0 rounded-md border px-3"
+        />
+
+        {/* 行3：所要時間＋追加ボタン */}
+        <label htmlFor="new-duration" className="text-sm text-gray-700">
+          所要時間：
+        </label>
+        <div className="flex items-center gap-2">
           <input
-            id="new-title"
-            type="text"
-            placeholder="やること（例：スーパーで買い出し）"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="h-10 w-full min-w-0 rounded-md border px-3"
+            id="new-duration"
+            type="number"
+            min={5}
+            max={600}
+            value={newDuration}
+            onChange={(e) => setNewDuration(Number(e.target.value))}
+            className="h-10 w-20 sm:w-24 rounded-md border px-2 text-right"
+            placeholder="分"
           />
-
-          {/* 2行目：所要時間＋追加ボタン */}
-          <label htmlFor="new-duration" className="text-sm text-gray-700">
-            所要時間：
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="new-duration"
-              type="number"
-              min={5}
-              max={600}
-              value={newDuration}
-              onChange={(e) => setNewDuration(Number(e.target.value))}
-              className="h-10 w-20 sm:w-24 rounded-md border px-2 text-right"
-              placeholder="分"
-            />
-            <button
-              onClick={addCustomItem}
-              className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
-            >
-              追加
-            </button>
-          </div>
+          <button
+            onClick={addCustomItem}
+            className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+          >
+            追加
+          </button>
         </div>
+        </div>
+
 
         {/* タイムライン（主役。カードは少しだけ詰める） */}
         {items.length === 0 ? (
