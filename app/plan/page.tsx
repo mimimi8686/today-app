@@ -159,50 +159,51 @@ export default function PlanPage() {
           </label>
         </div>
 
-        {/* 入力ブロック：ラベル列（左 110px）＋入力列（右） */}
-        <div className="mt-3 grid gap-2 sm:grid-cols-[110px_1fr] sm:items-center">
-          {/* 追加項目 */}
-          <label
-            htmlFor="new-title"
-            className="text-sm text-gray-700 sm:justify-self-start"
-          >
-            追加項目：
+       {/* 入力ブロック：常に1行、横スクロールなし */}
+        <div className="mt-3 flex items-center gap-1.5 sm:gap-2">
+          {/* ラベル（モバイルは短縮） */}
+          <label htmlFor="new-title" className="shrink-0 text-sm text-gray-700 tracking-tight">
+            <span className="sm:hidden">項目：</span>
+            <span className="hidden sm:inline">追加項目：</span>
           </label>
+
+          {/* やること入力：余り幅を全部使って縮む */}
           <input
             id="new-title"
             type="text"
             placeholder="やること（例：スーパーで買い出し）"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="h-10 rounded-md border px-3"
+            className="h-10 flex-1 min-w-0 rounded-md border px-3"
           />
 
-        {/* 所要時間＋追加ボタン（横並び） */}
-          <label
-            htmlFor="new-duration"
-            className="text-sm text-gray-700 sm:justify-self-start"
-          >
-            所要時間：
+          {/* ラベル（モバイルは短縮） */}
+          <label htmlFor="new-duration" className="ml-1 shrink-0 text-sm text-gray-700 tracking-tight">
+            <span className="sm:hidden">所要：</span>
+            <span className="hidden sm:inline">所要時間：</span>
           </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="new-duration"
-              type="number"
-              min={5}
-              max={600}
-              value={newDuration}
-              onChange={(e) => setNewDuration(Number(e.target.value))}
-              className="h-10 w-28 rounded-md border px-2"
-              placeholder="分"
-            />
-            <button
-              onClick={addCustomItem}
-              className="h-10 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
-            >
-              追加
-            </button>
-          </div>
+
+          {/* 分入力：最小幅固定（右寄せ） */}
+          <input
+            id="new-duration"
+            type="number"
+            min={5}
+            max={600}
+            value={newDuration}
+            onChange={(e) => setNewDuration(Number(e.target.value))}
+            className="h-10 w-16 sm:w-24 rounded-md border px-2 text-right"
+            placeholder="分"
+          />
+
+          {/* 追加ボタン：最小幅固定 */}
+          <button
+            onClick={addCustomItem}
+            className="h-10 shrink-0 rounded-md bg-emerald-600 px-3 sm:px-4 font-medium text-white hover:bg-emerald-700"
+          >
+            追加
+          </button>
         </div>
+
 
         {/* タイムライン（主役。カードは少しだけ詰める） */}
         {items.length === 0 ? (
