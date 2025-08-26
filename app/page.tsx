@@ -100,13 +100,26 @@ export default function Home() {
         <form ref={formRef} onSubmit={onSubmit} className="grid gap-5">
           {/* selects …（省略せず使ってOK） */}
           <label className="grid gap-1">
-            <span className="text-sm font-medium">得たいこと</span>
+            <span className="text-sm font-medium">どんな一日にしたい？</span>
             <select name="outcome" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
-              <option value="smile">笑顔になりたい</option>
+              <option value="smile">笑いたい</option>
+              <option value="fun">楽しみたい</option>
               <option value="refresh">リフレッシュしたい</option>
+              <option value="stress">ストレス発散したい</option>
               <option value="learning">学びたい</option>
               <option value="achievement">達成感ほしい</option>
+              <option value="relax">リラックスしたい・癒されたい</option>
+              <option value="budget">低予算で</option>
+              <option value="walk">散歩したい</option>
+              <option value="nature">自然と触れたい</option>
+              <option value="craft">工作したい</option>
+              <option value="experience">体験したい</option>
+              <option value="health">健康になりたい</option>
+              <option value="luxury">贅沢したい</option>
+              <option value="art">アート・文学に触れたい</option>
+              <option value="clean">すっきりしたい</option>
+              <option value="talk">話のネタをつくりたい</option>
             </select>
           </label>
           <label className="grid gap-1">
