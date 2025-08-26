@@ -223,7 +223,10 @@ export default function Home() {
             {loading ? "考え中…" : "考える"}
           </button>
 
-          <Link href="/plan" className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+          <Link
+            href="/plan"
+            className="inline-flex w-full sm:w-auto min-w-40 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-4 py-3 font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+          >
             <Clock className="h-5 w-5" /> タイムライン
             {bookmarkCount > 0 && (
               <span className="ml-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-emerald-600 px-1 text-xs text-white">
@@ -231,10 +234,12 @@ export default function Home() {
               </span>
             )}
           </Link>
+
+          {/* ← この直後に追加 */}
           <button
             type="button"
             onClick={() => formRef.current?.reset()}
-            className="mt-2 w-full sm:w-auto min-w-40 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-gray-200"
+            className="mt-2 w-full sm:w-auto text-sm text-gray-600 underline hover:text-gray-800"
           >
             クリア
           </button>
