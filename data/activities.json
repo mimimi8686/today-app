@@ -1,21 +1,47 @@
 [
-    {
-      "id": "a1",
-      "title": "科学館で体験エリア巡り",
-      "tags": ["indoor", "learning", "kids"],
-      "duration": 90
-    },
-    {
-      "id": "a2",
-      "title": "河川敷サイクリング",
-      "tags": ["outdoor", "refresh"],
-      "duration": 120
-    },
-    {
-      "id": "a3",
-      "title": "商店街で食べ歩き",
-      "tags": ["outdoor", "food"],
-      "duration": 60
-    }
+    { "id": "a1",  "title": "科学館で体験エリア巡り",       "tags": ["indoor","learning","kids"],   "duration": 90  },
+    { "id": "a2",  "title": "河川敷サイクリング",           "tags": ["outdoor","refresh","active"], "duration": 120 },
+    { "id": "a3",  "title": "商店街で食べ歩き",             "tags": ["outdoor","food","walk"],      "duration": 60  },
+  
+    { "id": "a4",  "title": "近所の公園でピクニック",       "tags": ["outdoor","nature","budget"],  "duration": 90  },
+    { "id": "a5",  "title": "図書館でのんびり読書",         "tags": ["indoor","relax","free"],      "duration": 60  },
+    { "id": "a6",  "title": "美術館の企画展を観る",         "tags": ["indoor","learning","relax"],  "duration": 90  },
+    { "id": "a7",  "title": "海辺を散歩して写真撮影",       "tags": ["outdoor","refresh","walk"],   "duration": 75  },
+    { "id": "a8",  "title": "植物園で季節の花めぐり",       "tags": ["outdoor","nature","relax"],   "duration": 80  },
+    { "id": "a9",  "title": "手作りピザに挑戦",             "tags": ["indoor","food","learning"],   "duration": 90  },
+    { "id": "a10", "title": "ボードゲームカフェで遊ぶ",     "tags": ["indoor","relax"],             "duration": 120 },
+  
+    { "id": "a11", "title": "朝のジョギング",               "tags": ["outdoor","refresh","active"], "duration": 30  },
+    { "id": "a12", "title": "川沿いでスケッチ",             "tags": ["outdoor","relax","nature"],   "duration": 60  },
+    { "id": "a13", "title": "パン屋さんでモーニング",       "tags": ["indoor","food","refresh"],    "duration": 45  },
+    { "id": "a14", "title": "家庭菜園の手入れ",             "tags": ["outdoor","nature","refresh"], "duration": 50  },
+    { "id": "a15", "title": "プラモデル制作",               "tags": ["indoor","craft","relax"],     "duration": 120 },
+    { "id": "a16", "title": "手帳タイム（計画・振り返り）", "tags": ["indoor","relax"],             "duration": 40  },
+    { "id": "a17", "title": "近場の温浴施設でゆったり",     "tags": ["indoor","relax"],             "duration": 120 },
+    { "id": "a18", "title": "公園でシャボン玉",             "tags": ["outdoor","kids","budget"],    "duration": 40  },
+    { "id": "a19", "title": "商店街の八百屋巡り",           "tags": ["outdoor","walk","budget"],    "duration": 60  },
+    { "id": "a20", "title": "室内ヨガ・ストレッチ",         "tags": ["indoor","refresh","relax"],   "duration": 30  },
+  
+    { "id": "a21", "title": "子どもと工作（紙コップけん玉）","tags": ["indoor","kids","craft"],     "duration": 25  },
+    { "id": "a22", "title": "展望台から街並みを眺める",     "tags": ["outdoor","refresh"],          "duration": 45  },
+    { "id": "a23", "title": "動物園でのんびり一周",         "tags": ["outdoor","nature","kids"],    "duration": 120 },
+    { "id": "a24", "title": "カフェで作業（はかどる時間）", "tags": ["indoor","relax"],             "duration": 90  },
+    { "id": "a25", "title": "市場・道の駅で食べ歩き",       "tags": ["outdoor","food","walk"],      "duration": 70  },
+    { "id": "a26", "title": "歴史的建造物を巡る",           "tags": ["outdoor","learning","walk"],  "duration": 90  },
+    { "id": "a27", "title": "天体観測の準備＆星空観察",     "tags": ["outdoor","learning","nature"],"duration": 120 },
+    { "id": "a28", "title": "お弁当づくり",                 "tags": ["indoor","food","budget"],     "duration": 60  },
+    { "id": "a29", "title": "フリマ/リサイクルショップ巡り","tags": ["outdoor","walk","budget"],    "duration": 80  },
+    { "id": "a30", "title": "音楽フェス/路上ライブを聴く", "tags": ["outdoor","refresh"],          "duration": 90  },
+  
+    { "id": "a31", "title": "家で映画鑑賞会",               "tags": ["indoor","relax"],             "duration": 120 },
+    { "id": "a32", "title": "写真の現像・アルバム作成",     "tags": ["indoor","craft","relax"],     "duration": 60  },
+    { "id": "a33", "title": "パン作り体験教室",             "tags": ["indoor","learning","food"],   "duration": 120 },
+    { "id": "a34", "title": "公園で凧あげ",                 "tags": ["outdoor","refresh","kids"],   "duration": 60  },
+    { "id": "a35", "title": "川原で石拾い＆水切り",         "tags": ["outdoor","nature","walk"],    "duration": 50  },
+    { "id": "a36", "title": "近所の神社でお参り＆散策",     "tags": ["outdoor","walk","relax"],     "duration": 40  },
+    { "id": "a37", "title": "DIYで棚を作る/修理する",       "tags": ["indoor","craft","learning"],  "duration": 120 },
+    { "id": "a38", "title": "ソロ喫茶店巡り（梯子）",       "tags": ["indoor","food","walk"],       "duration": 90  },
+    { "id": "a39", "title": "朝市で新鮮野菜を買う",         "tags": ["outdoor","budget","walk"],    "duration": 45  },
+    { "id": "a40", "title": "河原で読書＆コーヒー",         "tags": ["outdoor","relax","nature"],   "duration": 70  }
   ]
   
