@@ -15,22 +15,6 @@ type IdeaFromApi = {
   tags: string[];
 };
 
-// "place:indoor" -> "indoor" のように名前空間を外す
-function stripNs(tag: string) {
-  const i = tag.indexOf(":");
-  return i >= 0 ? tag.slice(i + 1) : tag;
-}
-
-// API -> 画面用Idea に変換（durationMin -> duration、タグはstrip）
-function toUiIdea(i: IdeaFromApi): Idea {
-  return {
-    id: i.id,
-    title: i.title,
-    duration: i.durationMin,
-    tags: (i.tags ?? []).map(stripNs),
-  };
-}
-
 
 function minutesToHHMM(total: number) {
   const h = Math.floor(total / 60);
@@ -195,7 +179,7 @@ async function copyTimelineAsText() {
     setNewTitle("");
     setNewDuration(60);
   }
-    　// 候補APIを叩く
+    // 候補APIを叩く
     async function fetchIdeasFromAPI(body: {
       outcome?: string;
       mood?: string;     // "outdoor" | "indoor" | "relax" | "active"
