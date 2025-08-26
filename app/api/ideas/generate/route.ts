@@ -28,6 +28,16 @@ type Idea = {
   durationMin: number;
 };
 
+// フロントから来るボディの型
+type RequestBody = {
+  random?: boolean;
+  limit?: number;
+  mood?: "outdoor" | "indoor" | "relax" | "active";
+  outcome?: string;
+  party?: "solo" | "family" | "partner" | "friends";
+  tags?: string[];
+};
+
 // --- ユーティリティ ---
 function sampleRandom<T>(arr: readonly T[], n: number): T[] {
   const a = arr.slice();
@@ -88,30 +98,25 @@ function includesAllTags(have: NamespacedTag[], required: NamespacedTag[]) {
 }
 
 // リクエストボディ → 必須タグ（AND）の変換
-function bodyToRequiredTags(body: any): NamespacedTag[] {
+function bodyToRequiredTags(body: RequestBody): NamespacedTag[] {
   const req: NamespacedTag[] = [];
 
-  // 既存互換：mood は "outdoor"/"indoor" or "relax"/"active" が来る想定
-  const mood: string | undefined = body?.mood;
+  const mood = body.mood;
   if (mood === "outdoor") req.push("place:outdoor");
   else if (mood === "indoor") req.push("place:indoor");
   else if (mood === "relax") req.push("mood:relax");
   else if (mood === "active") req.push("mood:active");
 
-  // 新規：フォームに合わせて outcome / party もサポート
-  const outcome: string | undefined = body?.outcome; // 例: "refresh"
-  if (outcome) req.push(`outcome:${outcome}` as NamespacedTag);
+  if (body.outcome) req.push(`outcome:${body.outcome}` as NamespacedTag);
+  if (body.party)   req.push(`party:${body.party}` as NamespacedTag);
 
-  const party: string | undefined = body?.party;     // 例: "family"
-  if (party) req.push(`party:${party}` as NamespacedTag);
-
-  // 既存の tags（OR想定）は、ここでは AND 必須にはしない（下でORフィルタ）
   return req;
 }
 
+
 // 既存フロントが POST で叩く想定
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => ({} as any));
+  const body: RequestBody = await req.json().catch(() => ({} as RequestBody));
 
   const random: boolean = !!body.random;
   const limit: number = Math.max(1, Math.min(Number(body.limit) || 6, 50));

@@ -38,11 +38,6 @@ export default function Home() {
   }
 
   // フィルター state（今回のテストでは未使用でもOK）
-  const [outcome, setOutcome] = useState<string>("");
-  const [mood, setMood] = useState<string>("");
-  const [party, setParty] = useState<string>("");
-  const [loadingIdeas, setLoadingIdeas] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [bookmarkCount, setBookmarkCount] = useState(0);
