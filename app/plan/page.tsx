@@ -210,10 +210,10 @@ export default function PlanPage() {
                           className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                         >
                         <div className="text-sm font-medium">
-                        <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
-                          {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
-                        </span>
-                      </div>
+                          <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
+                            {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
+                          </span>
+                        </div>
                           <h3 className="mt-0.5 text-lg font-semibold">{it.title}</h3>
                           <div className="mt-2 flex items-center justify-end gap-3">
                             <label className="text-xs text-gray-600">
