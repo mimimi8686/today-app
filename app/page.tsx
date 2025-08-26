@@ -14,6 +14,35 @@ const TAG_LABELS: Record<string, string> = {
 export default function Home() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
+    // APIの1件分
+  type IdeaFromApi = {
+    id: string;
+    title: string;
+    durationMin: number;
+    tags: string[];
+  };
+  // "place:indoor" -> "indoor" のように名前空間を外す
+  function stripNs(tag: string) {
+    const i = tag.indexOf(":");
+    return i >= 0 ? tag.slice(i + 1) : tag;
+  }
+
+  // API -> 画面用Idea に変換（durationMin -> duration、タグはstrip）
+  function toUiIdea(i: IdeaFromApi): Idea {
+    return {
+      id: i.id,
+      title: i.title,
+      duration: i.durationMin,
+      tags: (i.tags ?? []).map(stripNs),
+    };
+  }
+
+  // フィルター state（今回のテストでは未使用でもOK）
+  const [outcome, setOutcome] = useState<string>("");
+  const [mood, setMood] = useState<string>("");
+  const [party, setParty] = useState<string>("");
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
   const [bookmarkCount, setBookmarkCount] = useState(0);
@@ -29,16 +58,23 @@ export default function Home() {
     setLoading(true); setError(null); setIdeas([]);
     try {
       const res = await fetch("/api/ideas/generate", {
-        method: "POST", headers: { "content-type": "application/json" }, cache: "no-store",
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        cache: "no-store",
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("APIエラー: " + res.status);
-      const json = (await res.json()) as { ideas?: Idea[] };
-      setIdeas(json.ideas ?? []);
+      const json = await res.json();
+      const apiIdeas = (json.ideas ?? []) as IdeaFromApi[];
+      const uiIdeas = apiIdeas.map(toUiIdea); // ★ここでUI型に変換
+      setIdeas(uiIdeas);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
+  
 
   async function onRandomClick() {
     await fetchIdeas({ random: true });
