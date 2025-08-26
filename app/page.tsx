@@ -185,21 +185,21 @@ export default function Home() {
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-  　function clearFilters() {
-    // フォームの値（select）をリセット
-    formRef.current?.reset();
-  
-    // 一覧・状態をリセット
-    setIdeas([]);
-    setHasMore(false);
-    setOffset(0);
-    setSeenIds(new Set());
-    setLastQuery({});
-    setError(null);
-  
-    // 画面内スクロール位置を戻すなら（任意）
-    // document.getElementById("plan")?.scrollIntoView({ behavior: "smooth" });
-  }
+    function clearFilters() {
+      // フォームの値（select）をリセット
+      formRef.current?.reset();
+    
+      // 一覧・状態をリセット
+      setIdeas([]);
+      setHasMore(false);
+      setOffset(0);
+      setSeenIds(new Set());
+      setLastQuery({});
+      setError(null);
+    
+      // 画面内スクロール位置を戻すなら（任意）
+      // document.getElementById("plan")?.scrollIntoView({ behavior: "smooth" });
+    }
   
   function handleClearForm() {
     // フォームの入力を初期化
