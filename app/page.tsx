@@ -185,7 +185,22 @@ export default function Home() {
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-
+  　function clearFilters() {
+    // フォームの値（select）をリセット
+    formRef.current?.reset();
+  
+    // 一覧・状態をリセット
+    setIdeas([]);
+    setHasMore(false);
+    setOffset(0);
+    setSeenIds(new Set());
+    setLastQuery({});
+    setError(null);
+  
+    // 画面内スクロール位置を戻すなら（任意）
+    // document.getElementById("plan")?.scrollIntoView({ behavior: "smooth" });
+  }
+  
   function handleClearForm() {
     // フォームの入力を初期化
     formRef.current?.reset();
@@ -302,9 +317,9 @@ export default function Home() {
           </Link>
 
           <button
-              type="button"
-            onClick={handleClearForm}
-            className="mt-2 w-full sm:w-auto text-sm text-gray-600 underline hover:text-gray-800"
+            type="button"
+            onClick={clearFilters}
+            className="mt-3 w-full sm:w-auto text-sm text-gray-600 underline hover:text-gray-800"
           >
             選択をクリア
           </button>
@@ -319,12 +334,14 @@ export default function Home() {
       <ul className="grid gap-4 md:grid-cols-2">
         {ideas.map((i) => {
           const active = bookmarkedIds.has(i.id);
-          const jaTags = (i.tags ?? []).map((t) => TAG_LABELS[t] ?? t);
+          // duration 系（dur:15m など）を弾く
+          const jaTags = (i.tags ?? [])
+            .filter((t) => !t.startsWith("dur:"))
+            .map((t) => TAG_LABELS[t] ?? t);
           return (
             <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
               <h3 className="text-lg font-semibold">{i.title}</h3>
               <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
-
               {jaTags.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {jaTags.map((t) => (
