@@ -351,11 +351,12 @@ export default function PlanPage() {
                   await navigator.clipboard.writeText(url);
                   alert("共有リンクをコピーしました！");
                 }}
-                className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-4 py-2 text-sky-700 hover:bg-sky-100"
+                className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
                 title="共有リンクをコピー"
               >
                 共有
               </button>
+              
               <button
                 onClick={async () => {
                   if (items.length === 0) {
