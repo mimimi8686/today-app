@@ -128,14 +128,14 @@ export default function PlanPage() {
 
       <section className="mx-auto max-w-5xl px-6 py-6">
         {/* タイトル行：左=見出し / 右=すべてクリア（やや目立つ） */}
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold whitespace-nowrap">
             <Clock className="h-6 w-6 text-emerald-600" />
             今日のタイムライン
           </h1>
           <button
             onClick={clearAll}
-            className="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+            className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
             title="全部消す"
           >
             すべてクリア
@@ -161,20 +161,24 @@ export default function PlanPage() {
 
         {/* 入力行：横並び1行（スマホでは自動で折り返し） */}
         <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_120px_120px]">
-          <input
-            type="text"
-            placeholder="やること（例：スーパーで買い出し）"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="h-10 rounded-md border px-3"
-          />
+        {/* 1行目：タイトル */}
+        <input
+          type="text"
+          placeholder="やること（例：スーパーで買い出し）"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          className="h-10 rounded-md border px-3"
+        />
+
+        {/* 2行目：所要＋追加（モバイル時は横並び・sm以上ではグリッドの2/3列に展開） */}
+        <div className="flex gap-2 sm:contents">
           <input
             type="number"
             min={5}
             max={600}
             value={newDuration}
             onChange={(e) => setNewDuration(Number(e.target.value))}
-            className="h-10 rounded-md border px-2"
+            className="h-10 w-[120px] rounded-md border px-2 sm:w-auto"
             placeholder="所要（分）"
           />
           <button
@@ -184,6 +188,7 @@ export default function PlanPage() {
             追加
           </button>
         </div>
+      </div>
 
         {/* タイムライン（主役。カードは少しだけ詰める） */}
         {items.length === 0 ? (
@@ -204,9 +209,11 @@ export default function PlanPage() {
                           {...prov.dragHandleProps}
                           className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                         >
-                          <div className="text-xs text-gray-500">
-                            {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
-                          </div>
+                        <div className="text-sm font-medium">
+                        <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
+                          {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
+                        </span>
+                      </div>
                           <h3 className="mt-0.5 text-lg font-semibold">{it.title}</h3>
                           <div className="mt-2 flex items-center justify-end gap-3">
                             <label className="text-xs text-gray-600">
