@@ -16,9 +16,10 @@ type NamespacedTag =
   | `outcome:${"smile"|"fun"|"refresh"|"stress"|"learning"|"achievement"|"relax"|"budget"|"nature"|"hobby"|"experience"|"health"|"luxury"|"art"|"clean"|"talk"}`
   | `mood:${"relax"|"active"}`
   | `party:${"solo"|"family"|"partner"|"friends"}`
-  | `cat:${"nature"|"food"|"exercise"|"study"|"art"|"cleaning"|"shopping"|"entertainment"|"travel"|"wellness"|"home"|"errand"}`
+  | `cat:${"nature"|"food"|"exercise"|"study"|"art"|"cleaning"|"shopping"|"entertainment"|"travel"|"wellness"|"home"|"errand"|"hobby"}`
   | `dur:${"15m"|"30m"|"45m"|"60m"|"90m"|"120m"|"halfday"|"fullday"}`
   | `kids:${"ok"|"ng"}`;
+  
 
 // 内部で使う構造（正規化済み）
 type Idea = {
@@ -68,6 +69,45 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   refresh: ["outcome:refresh"],
   food: ["cat:food"],
   kids: ["kids:ok"],
+
+  // よく出る生タグがあればここに追加（例）
+  nature: ["cat:nature","outcome:nature"],
+  art: ["outcome:art","cat:art"],
+  hobby: ["outcome:hobby","cat:hobby" as NamespacedTag],
+  experience: ["outcome:experience"],
+  health: ["outcome:health"],
+  luxury: ["outcome:luxury"],
+  clean: ["outcome:clean","cat:cleaning"],
+  walk: ["cat:exercise"],          // 散歩系は軽い運動扱い
+  relax: ["outcome:relax"],        // 生タグに relax があれば拾う
+};
+
+const OUTCOME_TO_ANY: Record<string, NamespacedTag[]> = {
+  smile:      ["outcome:fun"],
+  fun:        ["outcome:fun"],
+  refresh:    ["outcome:refresh"],
+  stress:     ["outcome:refresh", "place:outdoor"],
+  learning:   ["outcome:learning", "cat:study"],
+  achievement:["outcome:achievement"],
+  relax:      ["outcome:relax", "place:indoor"],
+  budget:     ["cat:shopping","cat:food","place:outdoor"],
+  nature:     ["cat:nature","place:outdoor"],
+  hobby:      ["cat:hobby","outcome:learning"],
+  experience: ["outcome:experience"],
+  health:     ["outcome:health","cat:exercise"],
+  luxury:     ["outcome:luxury"],
+  art:        ["outcome:art","cat:art"],
+  clean:      ["outcome:clean","cat:cleaning","cat:home"],
+  talk:       ["outcome:talk","cat:entertainment"],
+};
+
+const MOOD_TO_ANY: Record<string, NamespacedTag[]> = {
+  relax: ["outcome:relax","outcome:refresh","place:indoor"],
+  active:["outcome:achievement","cat:exercise","place:outdoor"],
+};
+
+const PARTY_TO_SOFT: Record<string, NamespacedTag[]> = {
+  family: ["kids:ok"],
 };
 
 // JSON 1件を正規化
@@ -99,21 +139,20 @@ function includesAllTags(have: NamespacedTag[], required: NamespacedTag[]) {
   return required.every(tag => set.has(tag.toLowerCase()));
 }
 
-// リクエストボディ → 必須タグ（AND）の変換
+// リクエストボディ → 「確実に存在するAND条件」だけ作る（= place のみ）
 function bodyToRequiredTags(body: RequestBody): NamespacedTag[] {
   const req: NamespacedTag[] = [];
 
-  const mood = body.mood;
-  if (mood === "outdoor") req.push("place:outdoor");
-  else if (mood === "indoor") req.push("place:indoor");
-  else if (mood === "relax") req.push("mood:relax");
-  else if (mood === "active") req.push("mood:active");
+  // mood は indoor/outdoor のときだけ AND にする
+  if (body.mood === "outdoor") req.push("place:outdoor");
+  if (body.mood === "indoor")  req.push("place:indoor");
 
-  if (body.outcome) req.push(`outcome:${body.outcome}` as NamespacedTag);
-  if (body.party)   req.push(`party:${body.party}` as NamespacedTag);
+  // relax/active はデータに mood タグが無いので AND にはしない（下でソフト適用）
 
+  // outcome / party も AND にはせず、下で「任意フィルタ」として扱う
   return req;
 }
+
 
 
 // 既存フロントが POST で叩く想定
@@ -147,7 +186,40 @@ export async function POST(req: Request) {
     if (orNs.size) {
       pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
     }
+    
   }
+  // --- ここから任意（ソフト）フィルタ ---
+// 1) outcome を OR 条件で優先（該当があればそちらを採用、なければ元プール維持）
+if (body.outcome) {
+  const any = OUTCOME_TO_ANY[body.outcome.toLowerCase()];
+  if (any?.length) {
+    const set = new Set(any);
+    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
+    if (filtered.length) pool = filtered;
+  }
+}
+
+// 2) mood=relax/active を OR 条件で優先（indoor/outdoor は AND 済み）
+if (body.mood === "relax" || body.mood === "active") {
+  const any = MOOD_TO_ANY[body.mood];
+  if (any?.length) {
+    const set = new Set(any);
+    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
+    if (filtered.length) pool = filtered;
+  }
+}
+
+// 3) party=family は kids:ok を優先（該当があれば差し替え）
+if (body.party) {
+  const soft = PARTY_TO_SOFT[body.party];
+  if (soft?.length) {
+    const set = new Set(soft);
+    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
+    if (filtered.length) pool = filtered;
+  }
+}
+// --- 任意（ソフト）フィルタ ここまで ---
+
   // ★ ここを追加：クライアントですでに表示したIDは除外（重複防止）
   if (excludeIds.length) {
     const ex = new Set(excludeIds);
