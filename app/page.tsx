@@ -226,6 +226,24 @@ export default function Home() {
             })}
           </ul>
         )}
+        {/* 表示中の候補をタイムラインへ（ブックマークに保存してから遷移） */}
+          {ideas.length > 0 && (
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  // いま表示中の候補を bookmarks に保存してから /plan へ
+                  localStorage.setItem(
+                    "bookmarks",
+                    JSON.stringify(ideas.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60, tags: i.tags })))
+                  );
+                  location.href = "/plan";
+                }}
+                className="rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white hover:bg-emerald-700"
+              >
+                表示中の候補をタイムラインで見る
+              </button>
+            </div>
+          )} 
         {!loading && ideas.length === 0 && <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>}
       </section>
     </main>
