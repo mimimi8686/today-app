@@ -7,6 +7,15 @@ import { Trash2, Clock, Home } from "lucide-react";
 
 type Item = { id: string; title: string; duration?: number; tags?: string[] };
 
+// APIの返り値 1件分（/api/ideas/generate）
+type IdeaFromApi = {
+  id: string;
+  title: string;
+  durationMin: number;
+  tags: string[];
+};
+
+
 function minutesToHHMM(total: number) {
   const h = Math.floor(total / 60);
   const m = total % 60;
@@ -14,6 +23,12 @@ function minutesToHHMM(total: number) {
 }
 
 export default function PlanPage() {
+    // フィルター（フォーム）用 state
+  const [outcome, setOutcome] = useState<string>(""); // どんな一日にしたい？
+  const [mood, setMood] = useState<string>("");       // 気分
+  const [party, setParty] = useState<string>("");     // 誰と？
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+
   const [items, setItems] = useState<Item[]>([]);
   const [startTime, setStartTime] = useState("09:00");
   const [loaded, setLoaded] = useState(false);
@@ -164,6 +179,59 @@ async function copyTimelineAsText() {
     setNewTitle("");
     setNewDuration(60);
   }
+    　// 候補APIを叩く
+    async function fetchIdeasFromAPI(body: {
+      outcome?: string;
+      mood?: string;     // "outdoor" | "indoor" | "relax" | "active"
+      party?: string;    // "solo" | "family" | "partner" | "friends"
+      limit?: number;
+      random?: boolean;
+    }) {
+      const res = await fetch("/api/ideas/generate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error("failed to fetch ideas");
+      const data = await res.json();
+      return (data.ideas ?? []) as IdeaFromApi[];
+    }
+
+    // UIの現在のフォーム値を使って候補を追加
+    async function addIdeasByFilter() {
+      try {
+        setLoadingIdeas(true);
+        const ideas = await fetchIdeasFromAPI({
+          outcome: outcome || undefined,
+          mood: mood || undefined,
+          party: party || undefined,
+          limit: 3,       // 欲しい件数はお好みで
+          random: true,   // ランダムでバラけさせる
+        });
+
+        // APIの形 → 画面の Item 形に変換（durationMin → duration）
+        const mapped: Item[] = ideas.map((i) => ({
+          id: i.id,
+          title: i.title,
+          duration: i.durationMin,
+          tags: i.tags,
+        }));
+
+        // 既存と重複しないように追加
+        setItems((prev) => {
+          const exists = new Set(prev.map((p) => p.id));
+          const add = mapped.filter((m) => !exists.has(m.id));
+          return [...prev, ...add];
+        });
+      } catch (e) {
+        alert("候補の取得に失敗しました");
+        console.error(e);
+      } finally {
+        setLoadingIdeas(false);
+      }
+    }
+
+
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
@@ -208,60 +276,128 @@ async function copyTimelineAsText() {
 
        {/* 開始時刻＋追加項目＋所要時間：共通ラベル列で左揃え */}
         <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
-        {/* 行1：開始時刻 */}
-        <label htmlFor="start-time" className="text-sm text-gray-700">
-          開始時刻：
-        </label>
-        <input
-          id="start-time"
-          type="time"
-          value={startTime}
-          onChange={(e) => {
-            const v = e.target.value || "09:00";
-            if (!/^\d{2}:\d{2}$/.test(v)) return;
-            setStartTime(v);
-          }}
-          className="h-10 w-[110px] rounded-md border px-2"
-        />
-
-        {/* 行2：追加項目 */}
-        <label htmlFor="new-title" className="text-sm text-gray-700">
-          追加項目：
-        </label>
-        <input
-          id="new-title"
-          type="text"
-          placeholder="やること（例：ランチ）"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          className="h-10 w-full min-w-0 rounded-md border px-3"
-        />
-
-        {/* 行3：所要時間＋追加ボタン */}
-        <label htmlFor="new-duration" className="text-sm text-gray-700">
-          所要時間：
-        </label>
-        <div className="flex items-center gap-2">
+          {/* 行1：開始時刻 */}
+          <label htmlFor="start-time" className="text-sm text-gray-700">
+            開始時刻：
+          </label>
           <input
-            id="new-duration"
-            type="number"
-            min={5}
-            max={600}
-            value={newDuration}
-            onChange={(e) => setNewDuration(Number(e.target.value))}
-            className="h-10 w-20 sm:w-24 rounded-md border px-2 text-right"
-            placeholder="分"
+            id="start-time"
+            type="time"
+            value={startTime}
+            onChange={(e) => {
+              const v = e.target.value || "09:00";
+              if (!/^\d{2}:\d{2}$/.test(v)) return;
+              setStartTime(v);
+            }}
+            className="h-10 w-[110px] rounded-md border px-2"
           />
-          <button
-            onClick={addCustomItem}
-            className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+
+          {/* 行2：追加項目 */}
+          <label htmlFor="new-title" className="text-sm text-gray-700">
+            追加項目：
+          </label>
+          <input
+            id="new-title"
+            type="text"
+            placeholder="やること（例：ランチ）"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="h-10 w-full min-w-0 rounded-md border px-3"
+          />
+
+          {/* 行3：所要時間＋追加ボタン */}
+          <label htmlFor="new-duration" className="text-sm text-gray-700">
+            所要時間：
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="new-duration"
+              type="number"
+              min={5}
+              max={600}
+              value={newDuration}
+              onChange={(e) => setNewDuration(Number(e.target.value))}
+              className="h-10 w-20 sm:w-24 rounded-md border px-2 text-right"
+              placeholder="分"
+            />
+            <button
+              onClick={addCustomItem}
+              className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+            >
+              追加
+            </button>
+          </div>
+        </div>
+        {/* ---- 候補検索（Outcome / Mood / Party） ---- */}
+        <div className="mt-6 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
+          {/* outcome */}
+          <span className="text-sm text-gray-700">どんな一日？</span>
+          <select
+            value={outcome}
+            onChange={(e) => setOutcome(e.target.value)}
+            className="h-10 w-full rounded-md border px-3"
           >
-            追加
-          </button>
-        </div>
-        </div>
+            <option value="">指定なし</option>
+            <option value="smile">笑いたい</option>
+            <option value="fun">楽しみたい</option>
+            <option value="refresh">リフレッシュしたい</option>
+            <option value="stress">ストレス発散したい</option>
+            <option value="learning">学びたい</option>
+            <option value="achievement">達成感ほしい</option>
+            <option value="relax">リラックスしたい・癒されたい</option>
+            <option value="budget">低予算で過ごしたい</option>
+            <option value="nature">自然と触れたい</option>
+            <option value="hobby">趣味を見つけたい</option>
+            <option value="experience">体験したい</option>
+            <option value="health">体にいいことをしたい</option>
+            <option value="luxury">贅沢したい</option>
+            <option value="art">アート・文学に触れたい</option>
+            <option value="clean">綺麗にしたい</option>
+            <option value="talk">話のネタをつくりたい</option>
+          </select>
 
+          {/* mood */}
+          <span className="text-sm text-gray-700">気分</span>
+          <select
+            value={mood}
+            onChange={(e) => setMood(e.target.value)}
+            className="h-10 w-full rounded-md border px-3"
+          >
+            <option value="">指定なし</option>
+            <option value="outdoor">屋外</option>
+            <option value="indoor">屋内</option>
+            <option value="relax">のんびり</option>
+            <option value="active">アクティブ</option>
+          </select>
 
+          {/* party */}
+          <span className="text-sm text-gray-700">誰と？</span>
+          <select
+            value={party}
+            onChange={(e) => setParty(e.target.value)}
+            className="h-10 w-full rounded-md border px-3"
+          >
+            <option value="">指定なし</option>
+            <option value="solo">ひとり</option>
+            <option value="family">家族</option>
+            <option value="partner">パートナー</option>
+            <option value="friends">友人</option>
+          </select>
+
+          {/* ボタン行（ラベル列のダミー） */}
+          <div />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={addIdeasByFilter}
+              disabled={loadingIdeas}
+              className="h-10 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              title="条件に合う候補をタイムラインに追加"
+            >
+              {loadingIdeas ? "読み込み中..." : "候補を追加"}
+            </button>
+            <span className="text-xs text-gray-500">（最大3件を追加）</span>
+          </div>
+        </div>
         {/* タイムライン（主役） */}
         {items.length === 0 ? (
           <p className="mt-6 text-sm text-gray-500">
