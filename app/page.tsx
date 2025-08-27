@@ -175,12 +175,16 @@ export default function Home() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
+    const conds = data.getAll("cond") as string[]; // ← 追加（チェックボックス複数）
+
     const q = {
       outcome: (data.get("outcome") as string) || "",
       mood: (data.get("mood") as string) || "",
       party: (data.get("party") as string) || "",
-      random: false, // 並び順固定で出したい場合
+      random: false,
+      tags: conds, // ← 追加：バックエンドの OR タグとして渡す
     };
+
     setLastQuery(q);
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
@@ -261,24 +265,30 @@ export default function Home() {
           <label className="grid gap-1">
             <span className="text-sm font-medium">どんな一日にしたい？</span>
             <select name="outcome" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
-              <option value="">指定なし</option>
-              <option value="smile">笑いたい</option>
-              <option value="fun">楽しみたい</option>
-              <option value="refresh">リフレッシュしたい</option>
-              <option value="stress">ストレス発散したい</option>
-              <option value="learning">学びたい</option>
-              <option value="achievement">達成感ほしい</option>
-              <option value="relax">リラックスしたい・癒されたい</option>
-              <option value="budget">低予算で過ごしたい</option>
-              <option value="nature">自然と触れたい</option>
-              <option value="hobby">趣味を見つけたい</option>
-              <option value="experience">体験したい</option>
-              <option value="health">体にいいことをしたい</option>
-              <option value="luxury">贅沢したい</option>
-              <option value="art">アート・文学に触れたい</option>
-              <option value="clean">綺麗にしたい</option>
-              <option value="talk">話のネタをつくりたい</option>
-            </select>
+            <option value="">指定なし</option>
+
+            {/* 体験・気分系 */}
+            <option value="fun">楽しい気分になりたい</option>
+            <option value="refresh">リフレッシュしたい</option>
+            <option value="health">健康的に過ごしたい</option>
+            <option value="achievement">達成感を得たい</option>
+
+            {/* 学び・自己成長系 */}
+            <option value="learning">学び・スキルアップ</option>
+            <option value="hobby">趣味を深めたい・見つけたい</option>
+
+            {/* 文化・自然系 */}
+            <option value="art">アート・文学に触れたい</option>
+            <option value="nature">自然を楽しみたい</option>
+
+            {/* 特別体験系 */}
+            <option value="experience">新しい体験をしたい</option>
+            <option value="luxury">贅沢に過ごしたい</option>
+
+            {/* 日常改善系 */}
+            <option value="clean">綺麗に整えたい</option>
+            <option value="talk">交流したい／話題を作りたい</option>
+          </select>
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium">気分</span>
@@ -300,6 +310,37 @@ export default function Home() {
               <option value="friends">友人</option>
             </select>
           </label>
+          {/* コンディション（複数選択可） */}
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">コンディション（複数選択可）</span>
+            <div className="flex flex-wrap gap-3">
+              {/* 低予算 */}
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="cond" value="budget" className="h-4 w-4" />
+                <span>低予算</span>
+              </label>
+
+              {/* 屋内 / 屋外（どちらか/両方/どちらもなし 可） */}
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="cond" value="indoor" className="h-4 w-4" />
+                <span>屋内</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="cond" value="outdoor" className="h-4 w-4" />
+                <span>屋外</span>
+              </label>
+
+              {/* 時間系（どちらか/両方/どちらもなし 可） */}
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="cond" value="short" className="h-4 w-4" />
+                <span>短時間（〜60分）</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input type="checkbox" name="cond" value="long" className="h-4 w-4" />
+                <span>長め（90分〜）</span>
+              </label>
+            </div>
+          </div>
 
           <button type="submit" className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60">
             {loading ? "考え中…" : "考える"}
