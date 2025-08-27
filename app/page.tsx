@@ -270,6 +270,7 @@ export default function Home() {
             {/* 体験・気分系 */}
             <option value="fun">楽しい気分になりたい</option>
             <option value="refresh">リフレッシュしたい</option>
+            <option value="relax">癒されたい</option>
             <option value="health">健康的に過ごしたい</option>
             <option value="achievement">達成感を得たい</option>
 
@@ -413,15 +414,35 @@ export default function Home() {
       </ul>
 
       {/* もっと見る */}
-      <div className="mt-6 text-center">
-        <button
-          onClick={() => fetchIdeas(lastQuery, true)}   // append=true（追加読み込み）
-          disabled={!hasMore || loading}
-          className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
-        >
-          {hasMore ? "もっと見る" : "これ以上ありません"}
-        </button>
-      </div>
+        <div className="mt-6 text-center">
+          <button
+            onClick={() => fetchIdeas(lastQuery, true)}   // append=true（追加読み込み）
+            disabled={!hasMore || loading}
+            className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {hasMore ? "もっと見る" : "これで終わりです"}
+          </button>
+
+          {/* 追加入力：下に “TOPへ戻る / タイムラインへ” */}
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="text-sm underline underline-offset-4 text-gray-700 hover:text-gray-900"
+              title="ページの先頭へ戻る"
+              type="button"
+            >
+              TOPへ戻る
+            </button>
+            <Link
+              href="/plan"
+              className="text-sm rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-emerald-700 hover:bg-emerald-50"
+              title="タイムラインへ"
+            >
+              タイムラインへ
+            </Link>
+          </div>
+        </div>
+
     </>
   )}
 
