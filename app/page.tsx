@@ -294,8 +294,6 @@ export default function Home() {
             <span className="text-sm font-medium">気分</span>
             <select name="mood" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
-              <option value="outdoor">屋外</option>
-              <option value="indoor">屋内</option>
               <option value="relax">のんびり</option>
               <option value="active">アクティブ</option>
             </select>
@@ -305,7 +303,7 @@ export default function Home() {
             <select name="party" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
               <option value="">指定なし</option>
               <option value="solo">ひとり</option>
-              <option value="family">家族</option>
+              <option value="family">家族・子ども</option>
               <option value="partner">パートナー</option>
               <option value="friends">友人</option>
             </select>
