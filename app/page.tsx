@@ -235,7 +235,7 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-6 py-14 text-center">
         <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">今日なにする？</h1>
         <p className="mx-auto mt-4 max-w-2xl text-gray-700">
-          気分や目的を選ぶか、ランダムにおまかせ。今日のあなたにぴったりなプランを見つけよう。
+          気分や目的を選ぶか、ランダムにおまかせ。あなたにぴったりなプランを見つけよう。
         </p>
         <div className="mt-7 flex items-center justify-center gap-3">
           <button
@@ -424,10 +424,10 @@ export default function Home() {
           </button>
 
           {/* 追加入力：下に “TOPへ戻る / タイムラインへ” */}
-          <div className="mt-4 flex items-center justify-center gap-3">
+          <div className="mt-4 flex items-center justify-center gap-6 text-sm">
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="text-sm underline underline-offset-4 text-gray-700 hover:text-gray-900"
+              className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
               title="ページの先頭へ戻る"
               type="button"
             >
@@ -435,14 +435,13 @@ export default function Home() {
             </button>
             <Link
               href="/plan"
-              className="text-sm rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-emerald-700 hover:bg-emerald-50"
+              className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
               title="タイムラインへ"
             >
               タイムラインへ
             </Link>
           </div>
         </div>
-
     </>
   )}
 
