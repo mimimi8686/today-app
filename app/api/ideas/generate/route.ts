@@ -153,16 +153,48 @@ type CondFlags = {
 function normalizeConditions(arr?: string[]): CondFlags {
   const f: CondFlags = { wantIndoor:false, wantOutdoor:false, wantShort:false, wantLong:false, wantBudget:false };
   if (!Array.isArray(arr)) return f;
+
+  // 全角→半角・小文字化・余分記号の整理
+  const normalize = (x: string) => {
+    const toHalf = (s: string) =>
+      s.replace(/[0-9]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0));
+    return toHalf(String(x))
+      .toLowerCase()
+      .replace(/[（）()[]\[\]\s]/g, "")   // 括弧・空白
+      .replace(/[〜～~\-–—]/g, "")         // チルダ/波線/ダッシュ類
+      ;
+  };
+
   for (const raw of arr) {
-    const s = String(raw).toLowerCase();
-    if (["indoor","屋内"].includes(s))  f.wantIndoor = true;
-    else if (["outdoor","屋外"].includes(s)) f.wantOutdoor = true;
-    else if (["short","短め"].includes(s))  f.wantShort = true;
-    else if (["long","長め"].includes(s))   f.wantLong = true;
-    else if (["budget","低予算","free","無料","フリー"].includes(s)) f.wantBudget = true;
+    const s = normalize(raw);
+
+    // 屋内 / 屋外
+    if (s.includes("indoor") || s.includes("屋内")) f.wantIndoor = true;
+    if (s.includes("outdoor") || s.includes("屋外")) f.wantOutdoor = true;
+
+    // 低予算
+    if (s.includes("budget") || s.includes("低予算") || s.includes("free") || s.includes("無料") || s.includes("ﾌﾘｰ"))
+      f.wantBudget = true;
+
+    // ---- 時間帯（短め/長め）----
+    // キーワード優先
+    if (s.includes("短") || s.includes("short")) f.wantShort = true;
+    if (s.includes("長") || s.includes("long"))  f.wantLong  = true;
+
+    // 数値ヒント（例: "〜60分", "90分以上", "90~" など）
+    // 60 を含めば短め、90 を含めば長め
+    if (/\b60\b/.test(s) || /60分/.test(s)) f.wantShort = true;
+    if (/\b90\b/.test(s) || /90分/.test(s)) f.wantLong  = true;
+  }
+
+  // “短め”と“長め”が同時に立ったら、ユーザの誤操作/表記揺れとみなし無効化（両方true→どちらもfalse）
+  if (f.wantShort && f.wantLong) {
+    f.wantShort = false;
+    f.wantLong  = false;
   }
   return f;
 }
+
 
 // ---- JSON 1件を正規化（レガシー個別フィールドも吸収） ----
 function toArray(x?: string | string[]): string[] {
@@ -276,7 +308,7 @@ export async function POST(req: Request) {
 
   // duration の必須条件（短め/長め）
   if (flags.wantShort && !flags.wantLong) {
-    pool = pool.filter(it => it.durationMin <= 60);
+    pool = pool.filter(it => it.durationMin <= 75);
   } else if (flags.wantLong && !flags.wantShort) {
     pool = pool.filter(it => it.durationMin >= 90);
   }
