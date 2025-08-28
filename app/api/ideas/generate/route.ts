@@ -19,7 +19,6 @@ type NamespacedTag =
   | `cat:${"nature"|"food"|"exercise"|"study"|"art"|"cleaning"|"shopping"|"entertainment"|"travel"|"wellness"|"home"|"errand"|"hobby"}`
   | `dur:${"15m"|"30m"|"45m"|"60m"|"90m"|"120m"|"halfday"|"fullday"}`
   | `kids:${"ok"|"ng"}`;
-  
 
 // 内部で使う構造（正規化済み）
 type Idea = {
@@ -37,8 +36,9 @@ type RequestBody = {
   outcome?: string;
   party?: "solo" | "family" | "partner" | "friends";
   tags?: string[];
-  offset?: number;          // 非ランダム時のページング用（何件目から返すか）
-  excludeIds?: string[];    // 既に表示済みのID（ランダム時の重複除外用）
+  offset?: number;
+  excludeIds?: string[];
+  conditions?: string[];
 };
 
 // --- ユーティリティ ---
@@ -61,7 +61,7 @@ function durationBucket(mins: number): NamespacedTag {
   return "dur:halfday";
 }
 
-// 旧→名前空間タグの最小マップ（足したくなったらここに追記）
+// 旧→名前空間タグの最小マップ
 const TAG_MAP: Record<string, NamespacedTag[]> = {
   indoor: ["place:indoor"],
   outdoor: ["place:outdoor"],
@@ -69,30 +69,27 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   refresh: ["outcome:refresh"],
   food: ["cat:food"],
   kids: ["kids:ok"],
-
-  // よく出る生タグがあればここに追加（例）
   nature: ["cat:nature","outcome:nature"],
   art: ["outcome:art","cat:art"],
-  hobby: ["outcome:hobby","cat:hobby" as NamespacedTag],
+  hobby: ["outcome:hobby","cat:hobby"],
   experience: ["outcome:experience"],
   health: ["outcome:health"],
   luxury: ["outcome:luxury"],
   clean: ["outcome:clean","cat:cleaning"],
-  walk: ["cat:exercise"],          // 散歩系は軽い運動扱い
-  relax: ["outcome:relax"],        // 生タグに relax があれば拾う
+  walk: ["cat:exercise"],
+  relax: ["outcome:relax"],
   short: ["dur:15m", "dur:30m", "dur:45m", "dur:60m"],
   long:  ["dur:90m", "dur:120m", "dur:halfday", "dur:fullday"],
-  
 };
 
 const OUTCOME_TO_ANY: Record<string, NamespacedTag[]> = {
   smile:      ["outcome:fun"],
   fun:        ["outcome:fun"],
   refresh:    ["outcome:refresh"],
-  stress:     ["outcome:refresh", "place:outdoor"],
-  learning:   ["outcome:learning", "cat:study"],
+  stress:     ["outcome:refresh","place:outdoor"],
+  learning:   ["outcome:learning","cat:study"],
   achievement:["outcome:achievement"],
-  relax:      ["outcome:relax", "place:indoor"],
+  relax:      ["outcome:relax","place:indoor"],
   budget:     ["cat:shopping","cat:food","place:outdoor"],
   nature:     ["cat:nature","place:outdoor"],
   hobby:      ["cat:hobby","outcome:learning"],
@@ -117,19 +114,11 @@ const PARTY_TO_SOFT: Record<string, NamespacedTag[]> = {
 function normalize(raw: IdeaRaw): Idea {
   const d = Number(raw.duration ?? 60);
   const set = new Set<NamespacedTag>([durationBucket(d)]);
-
   for (const t of raw.tags ?? []) {
     const mapped = TAG_MAP[t.toLowerCase()];
     if (mapped) mapped.forEach(v => set.add(v));
-    // マップに無いタグは、まずは無視（必要なら扱いを拡張）
   }
-
-  return {
-    id: raw.id,
-    title: raw.title,
-    durationMin: d,
-    tags: Array.from(set),
-  };
+  return { id: raw.id, title: raw.title, durationMin: d, tags: Array.from(set) };
 }
 
 // モジュールロード時に一度だけ正規化
@@ -142,115 +131,105 @@ function includesAllTags(have: NamespacedTag[], required: NamespacedTag[]) {
   return required.every(tag => set.has(tag.toLowerCase()));
 }
 
-// リクエストボディ → 「確実に存在するAND条件」だけ作る（= place のみ）
+// 必須タグ（place のみ）
 function bodyToRequiredTags(body: RequestBody): NamespacedTag[] {
   const req: NamespacedTag[] = [];
-
-  // mood (indoor/outdoor) は AND 条件
   if (body.mood === "outdoor") req.push("place:outdoor");
   if (body.mood === "indoor")  req.push("place:indoor");
-
-  // party は AND 条件にする
-  if (body.party) req.push(`party:${body.party}` as NamespacedTag);
-
-  // outcome も AND 条件にする（本当に厳密にするなら）
-  if (body.outcome) req.push(`outcome:${body.outcome}` as NamespacedTag);
-
   return req;
 }
 
-// outcome / mood(relax/active) / party を「スコア対象」に広げる
-function buildSoftTags(body: RequestBody): NamespacedTag[] {
-  const soft: NamespacedTag[] = [];
-
-  // outcome 本人 & 類縁タグ
+// ソフト条件
+function buildSoftTags(body: RequestBody): Set<NamespacedTag> {
+  const s = new Set<NamespacedTag>();
   if (body.outcome) {
-    soft.push(`outcome:${body.outcome}` as NamespacedTag);
-    OUTCOME_TO_ANY[body.outcome]?.forEach(t => soft.push(t));
+    const m = OUTCOME_TO_ANY[body.outcome];
+    if (m) m.forEach(t => s.add(t));
   }
-
-  // mood の relax/active は補助タグとして扱う
-  if (body.mood === "relax" || body.mood === "active") {
-    MOOD_TO_ANY[body.mood]?.forEach(t => soft.push(t));
-  }
-
-  // party は本人タグ + 子どもOK等の緩いシグナル
+  if (body.mood === "relax")  MOOD_TO_ANY.relax.forEach(t => s.add(t));
+  if (body.mood === "active") MOOD_TO_ANY.active.forEach(t => s.add(t));
   if (body.party) {
-    soft.push(`party:${body.party}` as NamespacedTag);
-    PARTY_TO_SOFT[body.party]?.forEach(t => soft.push(t));
+    const p = PARTY_TO_SOFT[body.party];
+    if (p) p.forEach(t => s.add(t));
   }
-
-  return soft;
-}
-
-// softTags をどれだけ含むかで点数化（outcome一致は重め）
-function scoreBySoftTags(it: Idea, soft: Set<NamespacedTag>): number {
-  let s = 0;
-  for (const tag of it.tags) {
-    if (soft.has(tag)) s += String(tag).startsWith("outcome:") ? 2 : 1;
+  const conds = body.conditions;
+  if (Array.isArray(conds)) {
+    for (const c of conds) {
+      if (c === "budget") {
+        ["outcome:budget","cat:food","cat:shopping"].forEach(t => s.add(t as NamespacedTag));
+      } else if (c === "indoor") {
+        s.add("place:indoor");
+      } else if (c === "outdoor") {
+        s.add("place:outdoor");
+      } else if (c === "short") {
+        ["dur:15m","dur:30m","dur:45m","dur:60m"].forEach(t => s.add(t as NamespacedTag));
+      } else if (c === "long") {
+        ["dur:90m","dur:120m","dur:halfday","dur:fullday"].forEach(t => s.add(t as NamespacedTag));
+      }
+    }
   }
   return s;
 }
 
+// スコア計算
+function scoreBySoftTags(idea: Idea, soft: Set<NamespacedTag>): number {
+  let s = 0;
+  for (const t of idea.tags) if (soft.has(t)) s++;
+  return s;
+}
 
-// 既存フロントが POST で叩く想定
+// ---------------------------
+// API 本体
+// ---------------------------
 export async function POST(req: Request) {
   const body: RequestBody = await req.json().catch(() => ({} as RequestBody));
 
-  const random: boolean = !!body.random;
-  const limit: number = Math.max(1, Math.min(Number(body.limit) || 6, 50));
-
-  // ★ ここを追加
-  const offset: number = Math.max(0, Number(body.offset) || 0);
+  const random = !!body.random;
+  const limit  = Math.max(1, Math.min(Number(body.limit) || 6, 50));
+  const offset = Math.max(0, Number(body.offset) || 0);
   const excludeIds: string[] = Array.isArray(body.excludeIds) ? body.excludeIds : [];
 
-  // 追加分：フォーム値から AND 条件にするタグを作成
   const requiredTags = bodyToRequiredTags(body);
-
-  // 既存互換：自由タグOR（例: ["kids","refresh"]）
   const orTags: string[] = Array.isArray(body?.tags) ? body.tags : [];
 
-  // ① ベースプール（← ここで一度だけ宣言）
   let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
 
-    // ② ORタグ（あれば絞る）— ここでは「pool = pool.filter(...)」の再代入にする
-    if (orTags.length) {
-      const orNs = new Set<NamespacedTag>();
-      for (const t of orTags) {
-        const mapped = TAG_MAP[t.toLowerCase()];
-        if (mapped) mapped.forEach((v) => orNs.add(v));
-      }
-      if (orNs.size) {
-        pool = pool.filter((it) => it.tags.some((tag) => orNs.has(tag)));
-      }
+  if (orTags.length) {
+    const orNs = new Set<NamespacedTag>();
+    for (const t of orTags) {
+      const mapped = TAG_MAP[t.toLowerCase()];
+      if (mapped) mapped.forEach(v => orNs.add(v));
     }
-
-    // ③ excludeIds（重複除外）— これも再代入
-    if (excludeIds.length) {
-      const ex = new Set(excludeIds);
-      pool = pool.filter((it) => !ex.has(it.id));
+    if (orNs.size) {
+      pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
     }
+  }
 
+  if (excludeIds.length) {
+    const ex = new Set(excludeIds);
+    pool = pool.filter(it => !ex.has(it.id));
+  }
 
-    // ランダム or 先頭からのスライス（ページング）
-    let ideas: Idea[] = [];
-    let hasMore = false;
+  const soft = buildSoftTags(body);
+  if (soft.size) {
+    pool = pool
+      .map(it => ({ it, s: scoreBySoftTags(it, soft) }))
+      .sort((a, b) => b.s - a.s)
+      .map(x => x.it);
+  }
 
-    if (random) {
-      // ランダムは「重複除外済みプール」から抽選 → まだ残っていれば hasMore
-      const count = Math.min(limit, pool.length);
-      ideas = sampleRandom(pool, count);
-      hasMore = pool.length > count;
-    } else {
-      // 非ランダムは offset/limit でページング
-      const end = Math.min(offset + limit, pool.length);
-      ideas = pool.slice(offset, end);
-      hasMore = end < pool.length;
-    }
+  let ideas: Idea[] = [];
+  let hasMore = false;
 
-  return Response.json({
-    ideas,
-    hasMore,          // ← 次があるかどうか
-    total: pool.length + ideas.length, // 除外前の全件イメージが必要なら調整可
-  });
+  if (random) {
+    const count = Math.min(limit, pool.length);
+    ideas = sampleRandom(pool, count);
+    hasMore = pool.length > count;
+  } else {
+    const end = Math.min(offset + limit, pool.length);
+    ideas = pool.slice(offset, end);
+    hasMore = end < pool.length;
+  }
+
+  return Response.json({ ideas, hasMore, total: pool.length });
 }
