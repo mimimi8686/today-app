@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 type IdeaRaw = {
   id: string;
   title: string;
-  tags?: string[];   // ["indoor","learning","kids"] のような旧タグ
+  tags?: string[];   // ["indoor","family","party:family"] など混在を想定
   duration?: number; // 分
 };
 
@@ -34,7 +34,7 @@ type RequestBody = {
   limit?: number;
   mood?: "outdoor" | "indoor" | "relax" | "active";
   outcome?: string;
-  party?: "solo" | "family" | "partner" | "friends";
+  party?: string; // 日本語や英語混在を許容
   tags?: string[];
   offset?: number;
   excludeIds?: string[];
@@ -67,7 +67,7 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   indoor: ["place:indoor"],
   outdoor: ["place:outdoor"],
 
-  // party
+  // party（旧表記 → namespaced）
   solo: ["party:solo"],
   family: ["party:family"],
   partner: ["party:partner"],
@@ -121,14 +121,40 @@ const PARTY_TO_SOFT: Record<string, NamespacedTag[]> = {
   family: ["kids:ok"],
 };
 
+// 日本語/英語混在の party 値を namespaced に正規化
+type PartyTag = "party:solo" | "party:family" | "party:partner" | "party:friends";
+function normalizePartyValue(v?: string): PartyTag | undefined {
+  if (!v) return undefined;
+  const s = v.toLowerCase();
+  if (s.startsWith("party:")) {
+    const k = s as PartyTag;
+    if (["party:solo","party:family","party:partner","party:friends"].includes(k)) return k;
+  }
+  // 日本語や別表記
+  if (["solo","ひとり","一人","おひとり","お一人"].includes(s)) return "party:solo";
+  if (["family","親子","家族","親御さんと"].includes(s)) return "party:family";
+  if (["partner","couple","カップル","夫婦","パートナー"].includes(s)) return "party:partner";
+  if (["friends","友だち","友達","ともだち","仲間"].includes(s)) return "party:friends";
+  return undefined;
+}
+
 // JSON 1件を正規化
 function normalize(raw: IdeaRaw): Idea {
   const d = Number(raw.duration ?? 60);
   const set = new Set<NamespacedTag>([durationBucket(d)]);
-  for (const t of raw.tags ?? []) {
+
+  for (const t0 of raw.tags ?? []) {
+    const t = String(t0).trim();
+    // すでに namespaced ならそのまま受け入れる
+    if (t.includes(":")) {
+      set.add(t as NamespacedTag);
+      continue;
+    }
+    // 旧タグならマップ
     const mapped = TAG_MAP[t.toLowerCase()];
     if (mapped) mapped.forEach(v => set.add(v));
   }
+
   return { id: raw.id, title: raw.title, durationMin: d, tags: Array.from(set) };
 }
 
@@ -159,9 +185,9 @@ function buildSoftTags(body: RequestBody): Set<NamespacedTag> {
   }
   if (body.mood === "relax")  MOOD_TO_ANY.relax.forEach(t => s.add(t));
   if (body.mood === "active") MOOD_TO_ANY.active.forEach(t => s.add(t));
-  if (body.party) {
-    const p = PARTY_TO_SOFT[body.party];
-    if (p) p.forEach(t => s.add(t));
+  const party = normalizePartyValue(body.party);
+  if (party === "party:family") {
+    PARTY_TO_SOFT.family.forEach(t => s.add(t));
   }
   const conds = body.conditions;
   if (Array.isArray(conds)) {
@@ -193,29 +219,17 @@ function scoreBySoftTags(idea: Idea, soft: Set<NamespacedTag>): number {
 function looksMultiPerson(title: string): boolean {
   const kw = [
     "親子", "家族", "ファミリー", "兄弟", "姉妹",
-    "友だち", "友達", "みんなで", "対戦", "試合", "チーム",
-    "キャッチボール", "ダブルス", "バトル", "ペア", "二人", "二人で", "一緒に"
+    "友だち", "友達", "ともだち", "みんなで", "対戦", "試合", "チーム",
+    "キャッチボール", "ダブルス", "バトル", "ペア", "二人", "二人で", "一緒に",
+    "子ども", "子供", "こども"
   ];
   return kw.some(w => title.includes(w));
 }
 
-// --- party のハード条件フィルタ（改良版） ---
-type PartyTag = "party:solo" | "party:family" | "party:partner" | "party:friends";
-
-/**
- * party 未指定 → 通す
- * 候補に party タグがある → 選択と一致しなければ除外
- * 候補に party タグがない → 基本は通すが、"solo" 選択かつタイトルが複数人前提なら除外
- */
-function partyMatches(
-  idea: { tags?: NamespacedTag[]; title?: string },
-  selected?: (PartyTag | string)
-): boolean {
-  if (!selected) return true;
-
-  const want = String(selected).startsWith("party:")
-    ? (selected as PartyTag)
-    : (`party:${selected}` as PartyTag);
+// --- party のハード条件フィルタ ---
+function partyMatches(idea: { tags?: NamespacedTag[]; title?: string }, selected?: string): boolean {
+  const want = normalizePartyValue(selected);
+  if (!want) return true; // party 未指定・不明表記は通す
 
   const have = (idea.tags ?? []).filter((t) => t.startsWith("party:"));
 
@@ -223,11 +237,8 @@ function partyMatches(
     return have.includes(want);
   }
 
-  // party タグが無い場合の扱い
-  if (want === "party:solo") {
-    // タイトルが複数人っぽいなら除外、それ以外は許可
-    return !looksMultiPerson(idea.title ?? "");
-  }
+  // party タグが無い場合：solo 選択でタイトルが複数人前提なら除外
+  if (want === "party:solo") return !looksMultiPerson(idea.title ?? "");
   return true;
 }
 
@@ -254,6 +265,8 @@ export async function POST(req: Request) {
     for (const t of orTags) {
       const mapped = TAG_MAP[t.toLowerCase()];
       if (mapped) mapped.forEach(v => orNs.add(v));
+      // namespaced をそのまま渡しているケースも許す
+      if (t.includes(":")) orNs.add(t as NamespacedTag);
     }
     if (orNs.size) {
       pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
