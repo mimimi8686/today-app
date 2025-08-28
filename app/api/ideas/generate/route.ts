@@ -63,8 +63,17 @@ function durationBucket(mins: number): NamespacedTag {
 
 // 旧→名前空間タグの最小マップ
 const TAG_MAP: Record<string, NamespacedTag[]> = {
+  // place
   indoor: ["place:indoor"],
   outdoor: ["place:outdoor"],
+
+  // party（←追加）
+  solo: ["party:solo"],
+  family: ["party:family"],
+  partner: ["party:partner"],
+  friends: ["party:friends"],
+
+  // outcomes / categories
   learning: ["outcome:learning", "cat:study"],
   refresh: ["outcome:refresh"],
   food: ["cat:food"],
@@ -78,6 +87,8 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   clean: ["outcome:clean","cat:cleaning"],
   walk: ["cat:exercise"],
   relax: ["outcome:relax"],
+
+  // duration buckets
   short: ["dur:15m", "dur:30m", "dur:45m", "dur:60m"],
   long:  ["dur:90m", "dur:120m", "dur:halfday", "dur:fullday"],
 };
@@ -178,6 +189,35 @@ function scoreBySoftTags(idea: Idea, soft: Set<NamespacedTag>): number {
   return s;
 }
 
+// --- party のハード条件フィルタ（★追加） ---
+type PartyTag = "party:solo" | "party:family" | "party:partner" | "party:friends";
+
+/**
+ * 選択された party（ひとり/親子/…）に合わない候補は除外する。
+ * - リクエストで party 未指定 → 通す
+ * - 候補側に party タグがある → 交差しなければ除外
+ * - 候補側に party タグがない → 「ひとり」選択時のみ除外（安全側）
+ */
+function partyMatches(
+  idea: { tags?: NamespacedTag[] },
+  selected?: (PartyTag | string)
+): boolean {
+  if (!selected) return true;
+
+  const want = String(selected).startsWith("party:")
+    ? (selected as PartyTag)
+    : (`party:${selected}` as PartyTag);
+
+  const have = (idea.tags ?? []).filter((t) => t.startsWith("party:"));
+
+  if (have.length > 0) {
+    return have.includes(want);
+  }
+
+  // アイデア側に party タグが無い：ひとり選択なら除外、それ以外は許可
+  return want !== "party:solo";
+}
+
 // ---------------------------
 // API 本体
 // ---------------------------
@@ -192,8 +232,10 @@ export async function POST(req: Request) {
   const requiredTags = bodyToRequiredTags(body);
   const orTags: string[] = Array.isArray(body?.tags) ? body.tags : [];
 
+  // base pool: place の必須条件で絞り込み
   let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
 
+  // ORタグ（任意）
   if (orTags.length) {
     const orNs = new Set<NamespacedTag>();
     for (const t of orTags) {
@@ -205,11 +247,18 @@ export async function POST(req: Request) {
     }
   }
 
+  // 除外ID
   if (excludeIds.length) {
     const ex = new Set(excludeIds);
     pool = pool.filter(it => !ex.has(it.id));
   }
 
+  // ★ party のハード条件（ここで弾く）
+  if (body.party) {
+    pool = pool.filter((it) => partyMatches(it, body.party!));
+  }
+
+  // ソフト条件によるスコアリング
   const soft = buildSoftTags(body);
   if (soft.size) {
     pool = pool
@@ -218,6 +267,7 @@ export async function POST(req: Request) {
       .map(x => x.it);
   }
 
+  // ページング/ランダム
   let ideas: Idea[] = [];
   let hasMore = false;
 
