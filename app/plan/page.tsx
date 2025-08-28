@@ -109,9 +109,11 @@ export default function PlanPage() {
 
   function updateDuration(index: number, dur: number) {
     const next = [...items];
+    const safe = Number.isFinite(dur) ? dur : 60;
     next[index] = {
       ...next[index],
-      duration: Math.max(5, Math.min(Number.isFinite(dur) ? dur : 60, 600)),
+      // 下限を 1 に、上限は 600 のまま
+      duration: Math.max(1, Math.min(safe, 600)),
     };
     setItems(next);
   }
@@ -241,16 +243,14 @@ export default function PlanPage() {
             所要時間：
           </label>
           <div className="flex items-center gap-2">
-            <input
-              id="new-duration"
-              type="number"
-              min={5}
-              max={600}
-              value={newDuration}
-              onChange={(e) => setNewDuration(Number(e.target.value))}
-              className="h-10 w-20 sm:w-24 rounded-md border px-2 text-right"
-              placeholder="分"
-            />
+          <input
+            type="number"
+            min={5}
+            max={600}
+            value={it.duration ?? 60}
+            onChange={(e) => updateDuration(idx, Number(e.target.value))}
+            className="ml-2 h-9 w-24 rounded-md border px-2"
+          />
             <button
               onClick={addCustomItem}
               className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"

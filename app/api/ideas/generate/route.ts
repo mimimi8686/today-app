@@ -80,6 +80,9 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   clean: ["outcome:clean","cat:cleaning"],
   walk: ["cat:exercise"],          // 散歩系は軽い運動扱い
   relax: ["outcome:relax"],        // 生タグに relax があれば拾う
+  short: ["dur:15m", "dur:30m", "dur:45m", "dur:60m"],
+  long:  ["dur:90m", "dur:120m", "dur:halfday", "dur:fullday"],
+  
 };
 
 const OUTCOME_TO_ANY: Record<string, NamespacedTag[]> = {
@@ -143,16 +146,51 @@ function includesAllTags(have: NamespacedTag[], required: NamespacedTag[]) {
 function bodyToRequiredTags(body: RequestBody): NamespacedTag[] {
   const req: NamespacedTag[] = [];
 
-  // mood は indoor/outdoor のときだけ AND にする
+  // mood (indoor/outdoor) は AND 条件
   if (body.mood === "outdoor") req.push("place:outdoor");
   if (body.mood === "indoor")  req.push("place:indoor");
 
-  // relax/active はデータに mood タグが無いので AND にはしない（下でソフト適用）
+  // party は AND 条件にする
+  if (body.party) req.push(`party:${body.party}` as NamespacedTag);
 
-  // outcome / party も AND にはせず、下で「任意フィルタ」として扱う
+  // outcome も AND 条件にする（本当に厳密にするなら）
+  if (body.outcome) req.push(`outcome:${body.outcome}` as NamespacedTag);
+
   return req;
 }
 
+// outcome / mood(relax/active) / party を「スコア対象」に広げる
+function buildSoftTags(body: RequestBody): NamespacedTag[] {
+  const soft: NamespacedTag[] = [];
+
+  // outcome 本人 & 類縁タグ
+  if (body.outcome) {
+    soft.push(`outcome:${body.outcome}` as NamespacedTag);
+    OUTCOME_TO_ANY[body.outcome]?.forEach(t => soft.push(t));
+  }
+
+  // mood の relax/active は補助タグとして扱う
+  if (body.mood === "relax" || body.mood === "active") {
+    MOOD_TO_ANY[body.mood]?.forEach(t => soft.push(t));
+  }
+
+  // party は本人タグ + 子どもOK等の緩いシグナル
+  if (body.party) {
+    soft.push(`party:${body.party}` as NamespacedTag);
+    PARTY_TO_SOFT[body.party]?.forEach(t => soft.push(t));
+  }
+
+  return soft;
+}
+
+// softTags をどれだけ含むかで点数化（outcome一致は重め）
+function scoreBySoftTags(it: Idea, soft: Set<NamespacedTag>): number {
+  let s = 0;
+  for (const tag of it.tags) {
+    if (soft.has(tag)) s += String(tag).startsWith("outcome:") ? 2 : 1;
+  }
+  return s;
+}
 
 
 // 既存フロントが POST で叩く想定
@@ -224,6 +262,23 @@ if (body.party) {
   if (excludeIds.length) {
     const ex = new Set(excludeIds);
     pool = pool.filter(it => !ex.has(it.id));
+  }
+
+  // --- 既存 ---
+  // ベースプール
+  let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
+  // ...orTags の処理...
+  // excludeIds の処理...
+
+  // ここから追加：選択内容にマッチするほど上に来るよう並べ替え
+  const softNs = new Set<NamespacedTag>([
+    ...buildSoftTags(body),
+    // もし従来の自由タグを「緩い優先」にも使いたければここで加える
+    // ...（orTags を TAG_MAP 経由で NamespacedTag にして push）
+  ]);
+
+  if (softNs.size) {
+    pool.sort((a, b) => scoreBySoftTags(b, softNs) - scoreBySoftTags(a, softNs));
   }
 
   // ランダム or 先頭からのスライス（ページング）
