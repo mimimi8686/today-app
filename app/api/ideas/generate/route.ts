@@ -200,9 +200,9 @@ export async function POST(req: Request) {
   const random: boolean = !!body.random;
   const limit: number = Math.max(1, Math.min(Number(body.limit) || 6, 50));
 
-   // ★ ここを追加
-   const offset: number = Math.max(0, Number(body.offset) || 0);
-   const excludeIds: string[] = Array.isArray(body.excludeIds) ? body.excludeIds : [];
+  // ★ ここを追加
+  const offset: number = Math.max(0, Number(body.offset) || 0);
+  const excludeIds: string[] = Array.isArray(body.excludeIds) ? body.excludeIds : [];
 
   // 追加分：フォーム値から AND 条件にするタグを作成
   const requiredTags = bodyToRequiredTags(body);
@@ -210,76 +210,26 @@ export async function POST(req: Request) {
   // 既存互換：自由タグOR（例: ["kids","refresh"]）
   const orTags: string[] = Array.isArray(body?.tags) ? body.tags : [];
 
-  // ベースプール
+  // ベースプール（★ 宣言は1回だけ）
   let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
 
-  // 既存のORタグは、正規化マップ経由で “どれかを含む” にします
+  // orTags の適用（名前空間にマップして「どれか含む」）
   if (orTags.length) {
     const orNs = new Set<NamespacedTag>();
     for (const t of orTags) {
       const mapped = TAG_MAP[t.toLowerCase()];
       if (mapped) mapped.forEach(v => orNs.add(v));
-      // マップにないタグは無視（必要ならここも拡張）
     }
     if (orNs.size) {
       pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
     }
-    
   }
-  // --- ここから任意（ソフト）フィルタ ---
-// 1) outcome を OR 条件で優先（該当があればそちらを採用、なければ元プール維持）
-if (body.outcome) {
-  const any = OUTCOME_TO_ANY[body.outcome.toLowerCase()];
-  if (any?.length) {
-    const set = new Set(any);
-    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
-    if (filtered.length) pool = filtered;
-  }
-}
 
-// 2) mood=relax/active を OR 条件で優先（indoor/outdoor は AND 済み）
-if (body.mood === "relax" || body.mood === "active") {
-  const any = MOOD_TO_ANY[body.mood];
-  if (any?.length) {
-    const set = new Set(any);
-    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
-    if (filtered.length) pool = filtered;
-  }
-}
-
-// 3) party=family は kids:ok を優先（該当があれば差し替え）
-if (body.party) {
-  const soft = PARTY_TO_SOFT[body.party];
-  if (soft?.length) {
-    const set = new Set(soft);
-    const filtered = pool.filter(it => it.tags.some(t => set.has(t)));
-    if (filtered.length) pool = filtered;
-  }
-}
-// --- 任意（ソフト）フィルタ ここまで ---
-
-  // ★ ここを追加：クライアントですでに表示したIDは除外（重複防止）
+  // excludeIds の適用（重複除外）
   if (excludeIds.length) {
     const ex = new Set(excludeIds);
     pool = pool.filter(it => !ex.has(it.id));
-  }
-
-  // --- 既存 ---
-  // ベースプール
-  let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
-  // ...orTags の処理...
-  // excludeIds の処理...
-
-  // ここから追加：選択内容にマッチするほど上に来るよう並べ替え
-  const softNs = new Set<NamespacedTag>([
-    ...buildSoftTags(body),
-    // もし従来の自由タグを「緩い優先」にも使いたければここで加える
-    // ...（orTags を TAG_MAP 経由で NamespacedTag にして push）
-  ]);
-
-  if (softNs.size) {
-    pool.sort((a, b) => scoreBySoftTags(b, softNs) - scoreBySoftTags(a, softNs));
-  }
+  }  
 
   // ランダム or 先頭からのスライス（ページング）
   let ideas: Idea[] = [];
