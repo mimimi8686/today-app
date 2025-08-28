@@ -2,17 +2,18 @@
 import "server-only";
 import { loadShortLink, type SharePayload, type IdeaItem } from "@/lib/shortlink";
 import Link from "next/link";
-// NavMenu を入れたい場合はここでも import 可能（任意）
-// import NavMenu from "@/app/components/NavMenu";
 
 export const dynamic = "force-dynamic";
 
 // OGP/Twitterカード
-export async function generateMetadata({ params }: { params: { id: string } }) {
-  const data = loadShortLink(params.id);
+export async function generateMetadata(
+  props: { params: Promise<{ id: string }> }
+) {
+  const { id } = await props.params;
+  const data = loadShortLink(id);
   const title = data?.title ?? "共有プラン";
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-  const pageUrl = `${base}/s/${params.id}`;
+  const pageUrl = `${base}/s/${id}`;
   const og = `${base}/api/og?title=${encodeURIComponent(title)}`;
   return {
     title,
@@ -28,8 +29,12 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   };
 }
 
-export default async function SharedPage({ params }: { params: { id: string } }) {
-  const data = loadShortLink(params.id) as SharePayload | null;
+export default async function SharedPage(
+  props: { params: Promise<{ id: string }> }
+) {
+  const { id } = await props.params;
+  const data = loadShortLink(id) as SharePayload | null;
+
   if (!data) {
     return (
       <main className="p-6">
