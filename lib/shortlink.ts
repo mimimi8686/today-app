@@ -5,10 +5,22 @@ import { customAlphabet } from "nanoid";
 
 const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);
 
+// 共有に載せる1件
+export type IdeaItem = {
+  id: string;
+  title: string;
+  duration?: number;
+};
+
+// 共有時に付与する軽いリクエスト情報（将来拡張用。unknown でOK）
+export type ShareRequest = {
+  startTime?: string;
+} & Record<string, unknown>;
+
 export type SharePayload = {
   title?: string;
-  request?: any;   // outcome/mood/party/conditions など自由
-  ideas?: any[];   // 共有時点の候補（必要なら）
+  request?: ShareRequest;
+  ideas?: IdeaItem[];
 };
 
 // 初回だけテーブルを作る

@@ -1,11 +1,13 @@
 // app/s/[id]/page.tsx
 import "server-only";
-import { loadShortLink } from "@/lib/shortlink";
+import { loadShortLink, type SharePayload, type IdeaItem } from "@/lib/shortlink";
 import Link from "next/link";
-import CopyToPlanButton from "./CopyToPlanButton";
+// NavMenu を入れたい場合はここでも import 可能（任意）
+// import NavMenu from "@/app/components/NavMenu";
 
 export const dynamic = "force-dynamic";
 
+// OGP/Twitterカード
 export async function generateMetadata({ params }: { params: { id: string } }) {
   const data = loadShortLink(params.id);
   const title = data?.title ?? "共有プラン";
@@ -27,7 +29,7 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
 }
 
 export default async function SharedPage({ params }: { params: { id: string } }) {
-  const data = loadShortLink(params.id);
+  const data = loadShortLink(params.id) as SharePayload | null;
   if (!data) {
     return (
       <main className="p-6">
@@ -40,22 +42,16 @@ export default async function SharedPage({ params }: { params: { id: string } })
     );
   }
 
-  const { title, request, ideas } = data;
+  const title = data.title ?? "共有プラン";
+  const request = data.request;
+  const ideas: IdeaItem[] = data.ideas ?? [];
 
   return (
     <main className="mx-auto max-w-3xl p-6 space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{title ?? "共有プラン"}</h1>
+        <h1 className="text-2xl font-bold">{title}</h1>
         <Link href="/" className="underline text-emerald-700">アプリへ</Link>
       </header>
-
-      {/* ここが今回の追加 */}
-      <div>
-        <CopyToPlanButton
-          ideas={(ideas ?? []) as any[]}
-          startTime={(request as any)?.startTime ?? "09:00"}
-        />
-      </div>
 
       {request && (
         <section className="rounded border bg-gray-50 p-4">
@@ -68,14 +64,14 @@ export default async function SharedPage({ params }: { params: { id: string } })
 
       <section className="space-y-3">
         <h2 className="font-medium">候補</h2>
-        {(ideas ?? []).length === 0 ? (
+        {ideas.length === 0 ? (
           <p className="text-gray-500 text-sm">候補がありません。</p>
         ) : (
           <ul className="grid gap-3">
-            {(ideas ?? []).map((i: any) => (
+            {ideas.map((i) => (
               <li key={i.id} className="rounded border p-3 bg-white">
                 <div className="font-medium">{i.title}</div>
-                {i.duration ? (
+                {typeof i.duration === "number" ? (
                   <div className="text-xs text-gray-500 mt-1">所要 {i.duration} 分</div>
                 ) : null}
               </li>
