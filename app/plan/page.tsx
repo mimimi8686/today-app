@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Trash2, Clock, Home } from "lucide-react";
+import { gaEvent } from "@/lib/ga-event";
 
 type Item = { id: string; title: string; duration?: number; tags?: string[] };
 
@@ -157,9 +158,9 @@ export default function PlanPage() {
     setItems((prev) => [...prev, item]);
     setNewTitle("");
     setNewDuration(60);
+    gaEvent("custom_item_add", { title, duration: dur });
   }
   
-
   // テキストコピー
   async function copyTimelineAsText() {
     if (timeline.length === 0) {
@@ -463,22 +464,24 @@ export default function PlanPage() {
                 </button>
 
                 {/* 共有 */}
-                <button
-                  onClick={async () => {
-                    if (items.length === 0) {
-                      alert("タイムラインが空です");
-                      return;
-                    }
-                    const t = encodePlan({ items, startTime });
-                    const url = `${location.origin}/plan?t=${t}`;
-                    await navigator.clipboard.writeText(url);
-                    alert("共有リンクをコピーしました！");
-                  }}
-                  className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
-                  title="共有リンクをコピー"
-                >
-                  共有
-                </button>
+                  <button
+                    onClick={async () => {
+                      if (items.length === 0) {
+                        alert("タイムラインが空です");
+                        return;
+                      }
+                      const t = encodePlan({ items, startTime });
+                      const url = `${location.origin}/plan?t=${t}`;
+                      await navigator.clipboard.writeText(url);
+                      alert("共有リンクをコピーしました！");
+                      gaEvent("share_timeline", { source: "plan_page" }); // ← この行を追加！
+                    }}
+                    className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
+                    title="共有リンクをコピー"
+                  >
+                    共有
+                  </button>
+
 
                 {/* コピー */}
                 <button
@@ -488,6 +491,7 @@ export default function PlanPage() {
                       return;
                     }
                     await copyTimelineAsText();
+                    gaEvent("copy_timeline", { source: "plan_page" });
                   }}
                   className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
                   title="テキストでコピー"

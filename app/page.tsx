@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Clock, Shuffle } from "lucide-react";
 import { labelFromTag } from "@/lib/tag-labels";
+import { gaEvent } from "@/lib/ga-event";
 
 
 type Idea = { id: string; title: string; tags?: string[]; duration?: number };
@@ -398,14 +399,18 @@ export default function Home() {
                     )}
 
               <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => toggleBookmark(i)}
-                  className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
-                  aria-pressed={active}
-                  title={active ? "ブックマーク済み" : "ブックマーク"}
-                >
-                  <Bookmark className="h-5 w-5" />
-                </button>
+                
+              <button
+                onClick={() => {
+                  toggleBookmark(i);
+                  gaEvent("bookmark_add", { page: "home", ideaId: i.id });
+                }}
+                className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
+                aria-pressed={active}
+                title={active ? "ブックマーク済み" : "ブックマーク"}
+              >
+                <Bookmark className="h-5 w-5" />
+              </button>
                 <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
                   <Clock className="h-5 w-5" />
                 </Link>
