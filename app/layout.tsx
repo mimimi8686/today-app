@@ -15,13 +15,28 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   // 絶対URLを作るための基準
   metadataBase: new URL("https://todayplan.jp"),
-
   // タイトル（ページごとに上書きするときは template が効く）
-  title: {
-    default: "TodayPlan",
-    template: "%s | TodayPlan",
-  },
-  description: "今日の予定をサクッと決めるアプリ",
+      openGraph: {
+        title: "今日なにする？",
+        description: "もう迷わない。今日の行動が見つかるアプリ",
+        url: "https://todayplan.jp",
+        siteName: "今日なにする？",
+        images: [
+          {
+            url: "/ogp.png",
+            width: 1200,
+            height: 630,
+          },
+        ],
+        locale: "ja_JP",
+        type: "website",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "今日なにする？",
+        description: "もう迷わない。今日の行動が見つかるアプリ",
+        images: ["/ogp.png"],
+      },
 
   // PWA 用
   manifest: "/manifest.json",
@@ -38,32 +53,6 @@ export const metadata: Metadata = {
       { url: "/icon-192.png" },
       { url: "/icon-512.png" },
     ],
-  },
-
-  // OGP（Facebook等）
-  openGraph: {
-    type: "website",
-    url: "https://todayplan.jp",
-    title: "TodayPlan",
-    description: "今日の予定をサクッと決めるアプリ",
-    siteName: "TodayPlan",
-    images: [
-      {
-        url: "/ogp.png", // /public/ogp.png（1200x630）
-        width: 1200,
-        height: 630,
-        alt: "TodayPlan",
-      },
-    ],
-    locale: "ja_JP",
-  },
-
-  // Twitterカード
-  twitter: {
-    card: "summary_large_image",
-    title: "TodayPlan",
-    description: "今日の予定をサクッと決めるアプリ",
-    images: ["/ogp.png"],
   },
 };
 
