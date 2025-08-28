@@ -210,42 +210,43 @@ export async function POST(req: Request) {
   // 既存互換：自由タグOR（例: ["kids","refresh"]）
   const orTags: string[] = Array.isArray(body?.tags) ? body.tags : [];
 
-  // ベースプール（★ 宣言は1回だけ）
+  // ① ベースプール（← ここで一度だけ宣言）
   let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredTags));
 
-  // orTags の適用（名前空間にマップして「どれか含む」）
-  if (orTags.length) {
-    const orNs = new Set<NamespacedTag>();
-    for (const t of orTags) {
-      const mapped = TAG_MAP[t.toLowerCase()];
-      if (mapped) mapped.forEach(v => orNs.add(v));
+    // ② ORタグ（あれば絞る）— ここでは「pool = pool.filter(...)」の再代入にする
+    if (orTags.length) {
+      const orNs = new Set<NamespacedTag>();
+      for (const t of orTags) {
+        const mapped = TAG_MAP[t.toLowerCase()];
+        if (mapped) mapped.forEach((v) => orNs.add(v));
+      }
+      if (orNs.size) {
+        pool = pool.filter((it) => it.tags.some((tag) => orNs.has(tag)));
+      }
     }
-    if (orNs.size) {
-      pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
+
+    // ③ excludeIds（重複除外）— これも再代入
+    if (excludeIds.length) {
+      const ex = new Set(excludeIds);
+      pool = pool.filter((it) => !ex.has(it.id));
     }
-  }
 
-  // excludeIds の適用（重複除外）
-  if (excludeIds.length) {
-    const ex = new Set(excludeIds);
-    pool = pool.filter(it => !ex.has(it.id));
-  }  
 
-  // ランダム or 先頭からのスライス（ページング）
-  let ideas: Idea[] = [];
-  let hasMore = false;
+    // ランダム or 先頭からのスライス（ページング）
+    let ideas: Idea[] = [];
+    let hasMore = false;
 
-  if (random) {
-    // ランダムは「重複除外済みプール」から抽選 → まだ残っていれば hasMore
-    const count = Math.min(limit, pool.length);
-    ideas = sampleRandom(pool, count);
-    hasMore = pool.length > count;
-  } else {
-    // 非ランダムは offset/limit でページング
-    const end = Math.min(offset + limit, pool.length);
-    ideas = pool.slice(offset, end);
-    hasMore = end < pool.length;
-  }
+    if (random) {
+      // ランダムは「重複除外済みプール」から抽選 → まだ残っていれば hasMore
+      const count = Math.min(limit, pool.length);
+      ideas = sampleRandom(pool, count);
+      hasMore = pool.length > count;
+    } else {
+      // 非ランダムは offset/limit でページング
+      const end = Math.min(offset + limit, pool.length);
+      ideas = pool.slice(offset, end);
+      hasMore = end < pool.length;
+    }
 
   return Response.json({
     ideas,
