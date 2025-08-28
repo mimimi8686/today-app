@@ -129,7 +129,7 @@ export default function PlanPage() {
 
   function addCustomItem() {
     const title = newTitle.trim();
-    const dur = Math.max(5, Math.min(Number.isFinite(newDuration) ? newDuration : 60, 600));
+    const dur = Math.max(1, Math.min(Number.isFinite(newDuration) ? newDuration : 60, 600));
     if (!title) return;
     const id =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -140,6 +140,7 @@ export default function PlanPage() {
     setNewTitle("");
     setNewDuration(60);
   }
+  
 
   // テキストコピー
   async function copyTimelineAsText() {
@@ -243,14 +244,15 @@ export default function PlanPage() {
             所要時間：
           </label>
           <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={5}
-            max={600}
-            value={it.duration ?? 60}
-            onChange={(e) => updateDuration(idx, Number(e.target.value))}
-            className="ml-2 h-9 w-24 rounded-md border px-2"
-          />
+            <input
+              id="new-duration"
+              type="number"
+              min={1}
+              max={600}
+              value={newDuration}
+              onChange={(e) => setNewDuration(Number(e.target.value))}
+              className="h-10 w-24 rounded-md border px-2"
+            />
             <button
               onClick={addCustomItem}
               className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
@@ -269,14 +271,14 @@ export default function PlanPage() {
           <DragDropContext onDragEnd={handleDrag}>
             <Droppable droppableId="timeline">
               {(provided) => (
-                <>
-                  <ul
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    className="mt-5 grid gap-3"
-                  >
-                    {timeline.map((it, idx) => (
-                      <Draggable key={String(it.id)} draggableId={String(it.id)} index={idx}>
+                <div ref={provided.innerRef} {...provided.droppableProps}>
+                  <ul className="mt-5 grid gap-3">
+                    {timeline.map((item, i) => (
+                      <Draggable
+                        key={String(item.id)}
+                        draggableId={String(item.id)}
+                        index={i}
+                      >
                         {(prov) => (
                           <li
                             ref={prov.innerRef}
@@ -284,26 +286,33 @@ export default function PlanPage() {
                             {...prov.dragHandleProps}
                             className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
                           >
+                            {/* 時刻ピル */}
                             <div className="text-sm font-medium">
                               <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
-                                {minutesToHHMM(it.from!)} → {minutesToHHMM(it.to!)}
+                                {minutesToHHMM(item.from!)} → {minutesToHHMM(item.to!)}
                               </span>
                             </div>
-                            <h3 className="mt-0.5 text-lg font-semibold">{it.title}</h3>
+
+                            {/* タイトル */}
+                            <h3 className="mt-0.5 text-lg font-semibold">{item.title}</h3>
+
+                            {/* 操作 */}
                             <div className="mt-2 flex items-center justify-end gap-3">
                               <label className="text-xs text-gray-600">
                                 所要（分）
                                 <input
                                   type="number"
-                                  min={5}
+                                  min={1}
                                   max={600}
-                                  value={it.duration ?? 60}
-                                  onChange={(e) => updateDuration(idx, Number(e.target.value))}
+                                  value={item.duration ?? 60}
+                                  onChange={(e) =>
+                                    updateDuration(i, Number(e.target.value))
+                                  }
                                   className="ml-2 h-9 w-24 rounded-md border px-2"
                                 />
                               </label>
                               <button
-                                onClick={() => removeItem(idx)}
+                                onClick={() => removeItem(i)}
                                 className="rounded-full border p-2 hover:bg-gray-50"
                                 title="削除"
                               >
@@ -314,20 +323,23 @@ export default function PlanPage() {
                         )}
                       </Draggable>
                     ))}
-                    {provided.placeholder}
                   </ul>
 
-                  {/* 終了フッター */}
+                  {provided.placeholder}
+
+                  {/* 終了フッター（Droppableコンテナ内のままでOK） */}
                   <div className="mt-6 flex items-center">
                     <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
                     <div className="mx-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700">
                       <Clock className="h-4 w-4" />
                       <span className="font-medium">終了 {endTime}</span>
-                      <span className="hidden sm:inline text-sky-700/80">（合計 {totalMinutes}分）</span>
+                      <span className="hidden sm:inline text-sky-700/80">
+                        （合計 {totalMinutes}分）
+                      </span>
                     </div>
                     <div className="h-px flex-1 bg-gradient-to-r from-gray-300 via-gray-200 to-transparent" />
                   </div>
-                </>
+                </div>
               )}
             </Droppable>
           </DragDropContext>
