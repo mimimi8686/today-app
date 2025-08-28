@@ -67,7 +67,7 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   indoor: ["place:indoor"],
   outdoor: ["place:outdoor"],
 
-  // party（←追加）
+  // party
   solo: ["party:solo"],
   family: ["party:family"],
   partner: ["party:partner"],
@@ -189,17 +189,26 @@ function scoreBySoftTags(idea: Idea, soft: Set<NamespacedTag>): number {
   return s;
 }
 
-// --- party のハード条件フィルタ（★追加） ---
+// --- 複数人前提ワード検出（タイトル用） ---
+function looksMultiPerson(title: string): boolean {
+  const kw = [
+    "親子", "家族", "ファミリー", "兄弟", "姉妹",
+    "友だち", "友達", "みんなで", "対戦", "試合", "チーム",
+    "キャッチボール", "ダブルス", "バトル", "ペア", "二人", "二人で", "一緒に"
+  ];
+  return kw.some(w => title.includes(w));
+}
+
+// --- party のハード条件フィルタ（改良版） ---
 type PartyTag = "party:solo" | "party:family" | "party:partner" | "party:friends";
 
 /**
- * 選択された party（ひとり/親子/…）に合わない候補は除外する。
- * - リクエストで party 未指定 → 通す
- * - 候補側に party タグがある → 交差しなければ除外
- * - 候補側に party タグがない → 「ひとり」選択時のみ除外（安全側）
+ * party 未指定 → 通す
+ * 候補に party タグがある → 選択と一致しなければ除外
+ * 候補に party タグがない → 基本は通すが、"solo" 選択かつタイトルが複数人前提なら除外
  */
 function partyMatches(
-  idea: { tags?: NamespacedTag[] },
+  idea: { tags?: NamespacedTag[]; title?: string },
   selected?: (PartyTag | string)
 ): boolean {
   if (!selected) return true;
@@ -214,8 +223,12 @@ function partyMatches(
     return have.includes(want);
   }
 
-  // アイデア側に party タグが無い：ひとり選択なら除外、それ以外は許可
-  return want !== "party:solo";
+  // party タグが無い場合の扱い
+  if (want === "party:solo") {
+    // タイトルが複数人っぽいなら除外、それ以外は許可
+    return !looksMultiPerson(idea.title ?? "");
+  }
+  return true;
 }
 
 // ---------------------------
@@ -253,7 +266,7 @@ export async function POST(req: Request) {
     pool = pool.filter(it => !ex.has(it.id));
   }
 
-  // ★ party のハード条件（ここで弾く）
+  // ★ party のハード条件（ここで弾く／通す）
   if (body.party) {
     pool = pool.filter((it) => partyMatches(it, body.party!));
   }
