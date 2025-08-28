@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Clock, Shuffle } from "lucide-react";
+import { labelFromTag } from "@/lib/tag-labels";
+
 
 type Idea = { id: string; title: string; tags?: string[]; duration?: number };
 
@@ -371,29 +373,29 @@ export default function Home() {
       </section>
 
       {/* 結果カード（タグ=日本語表示） */}
-<section id="results" className="mx-auto max-w-4xl px-6 pb-16">
-  {ideas.length > 0 && (
-    <>
-      <ul className="grid gap-4 md:grid-cols-2">
-        {ideas.map((i) => {
-          const active = bookmarkedIds.has(i.id);
-          // duration 系（dur:15m など）を弾く
-          const jaTags = (i.tags ?? [])
-            .filter((t) => !t.startsWith("dur:"))
-            .map((t) => TAG_LABELS[t] ?? t);
-          return (
-            <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
-              <h3 className="text-lg font-semibold">{i.title}</h3>
-              <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
-              {jaTags.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {jaTags.map((t) => (
-                    <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              )}
+      <section id="results" className="mx-auto max-w-4xl px-6 pb-16">
+        {ideas.length > 0 && (
+          <>
+            <ul className="grid gap-4 md:grid-cols-2">
+              {ideas.map((i) => {
+                const active = bookmarkedIds.has(i.id);
+                // 名前空間タグを日本語に変換。非対応や dur は null で落とす
+                const jaTags = (i.tags ?? [])
+                .map((t: string) => labelFromTag(t))
+                .filter((v): v is string => !!v);
+                return (
+                  <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
+                    <h3 className="text-lg font-semibold">{i.title}</h3>
+                    <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
+                    {jaTags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {jaTags.map((t) => (
+                          <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
 
               <div className="mt-4 flex gap-2">
                 <button
