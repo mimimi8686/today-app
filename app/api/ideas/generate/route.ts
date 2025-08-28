@@ -7,8 +7,17 @@ export const dynamic = "force-dynamic";
 type IdeaRaw = {
   id: string;
   title: string;
-  tags?: string[];   // ["indoor","family","party:family"] など混在を想定
-  duration?: number; // 分
+  tags?: string[];     // 旧: ["indoor","family","party:family"] など
+  duration?: number;   // 分
+
+  // ↓ レガシー個別フィールド（混在想定：string | string[]）
+  place?: string | string[];
+  outcomes?: string | string[];
+  mood?: string | string[];
+  party?: string | string[];
+  kids?: string | string[];
+  cat?: string | string[];
+  extra_tags?: string | string[];
 };
 
 type NamespacedTag =
@@ -20,7 +29,6 @@ type NamespacedTag =
   | `dur:${"15m"|"30m"|"45m"|"60m"|"90m"|"120m"|"halfday"|"fullday"}`
   | `kids:${"ok"|"ng"}`;
 
-// 内部で使う構造（正規化済み）
 type Idea = {
   id: string;
   title: string;
@@ -28,20 +36,20 @@ type Idea = {
   durationMin: number;
 };
 
-// フロントから来るボディの型
 type RequestBody = {
   random?: boolean;
   limit?: number;
   mood?: "outdoor" | "indoor" | "relax" | "active";
   outcome?: string;
-  party?: string;           // 日本語や英語混在を許容
+  party?: string;           // 日本語/英語混在OK
   tags?: string[];
   offset?: number;
   excludeIds?: string[];
-  conditions?: string[];    // 日本語/英語どちらも来る想定
+  conditions?: string[];    // 日本語/英語混在OK
 };
 
-// --- ユーティリティ ---
+// --------------- ユーティリティ共通 ---------------
+
 function sampleRandom<T>(arr: readonly T[], n: number): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -64,28 +72,14 @@ function durationBucket(mins: number): NamespacedTag {
 // 旧→名前空間タグの最小マップ
 const TAG_MAP: Record<string, NamespacedTag[]> = {
   // place
-  indoor: ["place:indoor"],
-  屋内: ["place:indoor"],
-  outdoor: ["place:outdoor"],
-  屋外: ["place:outdoor"],
+  indoor: ["place:indoor"], 屋内: ["place:indoor"],
+  outdoor: ["place:outdoor"], 屋外: ["place:outdoor"],
 
-  // party（旧表記 → namespaced）
-  solo: ["party:solo"],
-  ひとり: ["party:solo"],
-  一人: ["party:solo"],
-  おひとり: ["party:solo"],
-  お一人: ["party:solo"],
-  family: ["party:family"],
-  親子: ["party:family"],
-  家族: ["party:family"],
-  partner: ["party:partner"],
-  couple: ["party:partner"],
-  カップル: ["party:partner"],
-  夫婦: ["party:partner"],
-  friends: ["party:friends"],
-  友だち: ["party:friends"],
-  友達: ["party:friends"],
-  ともだち: ["party:friends"],
+  // party
+  solo: ["party:solo"], ひとり: ["party:solo"], 一人: ["party:solo"], おひとり: ["party:solo"], お一人: ["party:solo"],
+  family: ["party:family"], 親子: ["party:family"], 家族: ["party:family"],
+  partner: ["party:partner"], couple: ["party:partner"], カップル: ["party:partner"], 夫婦: ["party:partner"],
+  friends: ["party:friends"], 友だち: ["party:friends"], 友達: ["party:friends"], ともだち: ["party:friends"],
 
   // outcomes / categories
   learning: ["outcome:learning", "cat:study"],
@@ -103,33 +97,23 @@ const TAG_MAP: Record<string, NamespacedTag[]> = {
   relax: ["outcome:relax"],
 
   // duration buckets
-  short: ["dur:15m", "dur:30m", "dur:45m", "dur:60m"],
-  短め: ["dur:15m", "dur:30m", "dur:45m", "dur:60m"],
-  long:  ["dur:90m", "dur:120m", "dur:halfday", "dur:fullday"],
-  長め:  ["dur:90m", "dur:120m", "dur:halfday", "dur:fullday"],
+  short: ["dur:15m","dur:30m","dur:45m","dur:60m"], 短め: ["dur:15m","dur:30m","dur:45m","dur:60m"],
+  long: ["dur:90m","dur:120m","dur:halfday","dur:fullday"], 長め: ["dur:90m","dur:120m","dur:halfday","dur:fullday"],
 
   // budget
-  budget: ["outcome:budget"],
-  低予算: ["outcome:budget"],
+  budget: ["outcome:budget"], 低予算: ["outcome:budget"], free: ["outcome:budget"], 無料: ["outcome:budget"], フリー: ["outcome:budget"],
 };
 
 const OUTCOME_TO_ANY: Record<string, NamespacedTag[]> = {
-  smile:      ["outcome:fun"],
-  fun:        ["outcome:fun"],
-  refresh:    ["outcome:refresh"],
-  stress:     ["outcome:refresh","place:outdoor"],
-  learning:   ["outcome:learning","cat:study"],
-  achievement:["outcome:achievement"],
-  relax:      ["outcome:relax","place:indoor"],
-  budget:     ["outcome:budget","cat:food","cat:shopping"],  // 低予算の“寄せ”
-  nature:     ["cat:nature","place:outdoor"],
-  hobby:      ["cat:hobby","outcome:learning"],
-  experience: ["outcome:experience"],
-  health:     ["outcome:health","cat:exercise"],
-  luxury:     ["outcome:luxury"],
-  art:        ["outcome:art","cat:art"],
-  clean:      ["outcome:clean","cat:cleaning","cat:home"],
-  talk:       ["outcome:talk","cat:entertainment"],
+  smile: ["outcome:fun"], fun: ["outcome:fun"],
+  refresh: ["outcome:refresh"], stress: ["outcome:refresh","place:outdoor"],
+  learning: ["outcome:learning","cat:study"], achievement: ["outcome:achievement"],
+  relax: ["outcome:relax","place:indoor"],
+  budget: ["outcome:budget","cat:food","cat:shopping"],
+  nature: ["cat:nature","place:outdoor"], hobby: ["cat:hobby","outcome:learning"],
+  experience: ["outcome:experience"], health: ["outcome:health","cat:exercise"],
+  luxury: ["outcome:luxury"], art: ["outcome:art","cat:art"],
+  clean: ["outcome:clean","cat:cleaning","cat:home"], talk: ["outcome:talk","cat:entertainment"],
 };
 
 const MOOD_TO_ANY: Record<string, NamespacedTag[]> = {
@@ -141,7 +125,7 @@ const PARTY_TO_SOFT: Record<string, NamespacedTag[]> = {
   family: ["kids:ok"],
 };
 
-// --- 正規化ヘルパ ---
+// ---- 入力正規化 ----
 type PartyTag = "party:solo" | "party:family" | "party:partner" | "party:friends";
 
 function normalizePartyValue(v?: string): PartyTag | undefined {
@@ -175,101 +159,100 @@ function normalizeConditions(arr?: string[]): CondFlags {
     else if (["outdoor","屋外"].includes(s)) f.wantOutdoor = true;
     else if (["short","短め"].includes(s))  f.wantShort = true;
     else if (["long","長め"].includes(s))   f.wantLong = true;
-    else if (["budget","低予算"].includes(s)) f.wantBudget = true;
+    else if (["budget","低予算","free","無料","フリー"].includes(s)) f.wantBudget = true;
   }
   return f;
 }
 
-// JSON 1件を正規化
+// ---- JSON 1件を正規化（レガシー個別フィールドも吸収） ----
+function toArray(x?: string | string[]): string[] {
+  if (x == null) return [];
+  if (Array.isArray(x)) return x;
+  // CSV も許容
+  return String(x).split(/[,\s]+/).filter(Boolean);
+}
+
 function normalize(raw: IdeaRaw): Idea {
   const d = Number(raw.duration ?? 60);
   const set = new Set<NamespacedTag>([durationBucket(d)]);
 
-  for (const t0 of raw.tags ?? []) {
-    const t = String(t0).trim();
-    // すでに namespaced ならそのまま受け入れる
-    if (t.includes(":")) {
-      set.add(t as NamespacedTag);
-      continue;
-    }
-    // 旧タグならマップ
+  const push = (label: string) => {
+    const t = String(label).trim();
+    if (!t) return;
+    if (t.includes(":")) { set.add(t as NamespacedTag); return; }
     const mapped = TAG_MAP[t.toLowerCase()] ?? TAG_MAP[t];
     if (mapped) mapped.forEach(v => set.add(v));
-  }
+  };
+
+  // 旧 tags[]
+  for (const t of raw.tags ?? []) push(t);
+
+  // レガシー個別フィールド
+  toArray(raw.place).forEach(push);      // "indoor"/"outdoor"
+  toArray(raw.outcomes).forEach(push);   // "refresh" など
+  toArray(raw.mood).forEach(push);       // "relax"/"active"
+  toArray(raw.party).forEach(push);      // "family"/"solo" など
+  toArray(raw.kids).forEach(push);       // "ok"/"ng" → kids:ok は TAG_MAP 経由
+  toArray(raw.cat).forEach(push);        // "study"/"food" など
+  toArray(raw.extra_tags).forEach(push); // "free" など → outcome:budget に寄せる
 
   return { id: raw.id, title: raw.title, durationMin: d, tags: Array.from(set) };
 }
 
-// モジュールロード時に一度だけ正規化
+// ---- 前処理（起動時一度）----
 const ACTIVITIES: Idea[] = (activitiesJson as IdeaRaw[]).map(normalize);
 
-// AND一致
+// ---- タグ一致/必須条件 ----
 function includesAllTags(have: NamespacedTag[], required: NamespacedTag[]) {
   if (!required.length) return true;
   const set = new Set(have.map(s => s.toLowerCase()));
   return required.every(tag => set.has(tag.toLowerCase()));
 }
 
-// 必須タグ（mood と conditions の place を統合）
 function bodyToRequiredPlaceTags(mood: RequestBody["mood"], flags: CondFlags): NamespacedTag[] {
-  // mood が place を指定する場合はそれを優先
   if (mood === "outdoor") return ["place:outdoor"];
   if (mood === "indoor")  return ["place:indoor"];
-
-  // mood で未指定なら conditions を参照
   if (flags.wantIndoor && !flags.wantOutdoor) return ["place:indoor"];
   if (!flags.wantIndoor && flags.wantOutdoor) return ["place:outdoor"];
-  // 両方 or どちらも → 制限なし（OR 扱い）
-  return [];
+  return []; // 両方 or どちらも → 制限なし
 }
 
-// ソフト条件
+// ---- ソフト条件（加点）----
 function buildSoftTags(body: RequestBody, flags: CondFlags): Set<NamespacedTag> {
   const s = new Set<NamespacedTag>();
-  if (body.outcome) {
-    const m = OUTCOME_TO_ANY[body.outcome];
-    if (m) m.forEach(t => s.add(t));
-  }
+  if (body.outcome) (OUTCOME_TO_ANY[body.outcome] ?? []).forEach(t => s.add(t));
   if (body.mood === "relax")  MOOD_TO_ANY.relax.forEach(t => s.add(t));
   if (body.mood === "active") MOOD_TO_ANY.active.forEach(t => s.add(t));
 
   const party = normalizePartyValue(body.party);
   if (party === "party:family") PARTY_TO_SOFT.family.forEach(t => s.add(t));
 
-  // 低予算は現状ソフト寄せ（将来 cost 情報が入ったらハードに変更可）
-  if (flags.wantBudget) OUTCOME_TO_ANY.budget.forEach(t => s.add(t));
-
-  // 屋内/屋外・短め/長めはハード側で扱うのでここでは加点に使わない
+  if (flags.wantBudget) OUTCOME_TO_ANY.budget.forEach(t => s.add(t)); // 低予算はソフト寄せ
   return s;
 }
 
-// スコア計算
 function scoreBySoftTags(idea: Idea, soft: Set<NamespacedTag>): number {
   let s = 0;
   for (const t of idea.tags) if (soft.has(t)) s++;
   return s;
 }
 
-// --- タイトルから複数人前提を推定（“ひとり”保護用） ---
+// ---- “ひとり”の保護（タイトルで複数人前提を避ける）----
 function looksMultiPerson(title: string): boolean {
   const kw = [
-    "親子", "家族", "ファミリー", "兄弟", "姉妹",
-    "友だち", "友達", "ともだち", "みんなで", "対戦", "試合", "チーム",
-    "キャッチボール", "ダブルス", "バトル", "ペア", "二人", "二人で", "一緒に",
-    "子ども", "子供", "こども"
+    "親子","家族","ファミリー","兄弟","姉妹",
+    "友だち","友達","ともだち","みんなで","対戦","試合","チーム",
+    "キャッチボール","ダブルス","バトル","ペア","二人","二人で","一緒に",
+    "子ども","子供","こども"
   ];
   return kw.some(w => title.includes(w));
 }
 
-// --- party のハード条件 ---
 function partyMatches(idea: { tags?: NamespacedTag[]; title?: string }, selected?: string): boolean {
   const want = normalizePartyValue(selected);
-  if (!want) return true; // party 未指定・不明表記は通す
-
+  if (!want) return true;
   const have = (idea.tags ?? []).filter((t) => t.startsWith("party:"));
   if (have.length > 0) return have.includes(want);
-
-  // party タグが無い場合：solo 選択でタイトルが複数人前提なら除外
   if (want === "party:solo") return !looksMultiPerson(idea.title ?? "");
   return true;
 }
@@ -285,23 +268,20 @@ export async function POST(req: Request) {
   const offset = Math.max(0, Number(body.offset) || 0);
   const excludeIds: string[] = Array.isArray(body.excludeIds) ? body.excludeIds : [];
 
-  // 条件を正規化
   const flags = normalizeConditions(body.conditions);
-
-  // place の必須条件（mood と conditions を統合）
   const requiredPlace = bodyToRequiredPlaceTags(body.mood, flags);
 
-  // base pool: place の必須条件で絞り込み
+  // base pool: place の必須条件
   let pool = ACTIVITIES.filter((it) => includesAllTags(it.tags, requiredPlace));
 
-  // ★ duration のハード条件（短め/長め）
+  // duration の必須条件（短め/長め）
   if (flags.wantShort && !flags.wantLong) {
     pool = pool.filter(it => it.durationMin <= 60);
   } else if (flags.wantLong && !flags.wantShort) {
     pool = pool.filter(it => it.durationMin >= 90);
-  } // 両方 or どちらも → 制限なし
+  }
 
-  // party のハード条件
+  // party の必須条件
   if (body.party) {
     pool = pool.filter((it) => partyMatches(it, body.party!));
   }
@@ -321,12 +301,10 @@ export async function POST(req: Request) {
       if (mapped) mapped.forEach(v => orNs.add(v));
       if (t.includes(":")) orNs.add(t as NamespacedTag);
     }
-    if (orNs.size) {
-      pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
-    }
+    if (orNs.size) pool = pool.filter((it) => it.tags.some(tag => orNs.has(tag)));
   }
 
-  // ソフト条件によるスコアリング（低予算など）
+  // ソフト条件（低予算など）の加点
   const soft = buildSoftTags(body, flags);
   if (soft.size) {
     pool = pool
