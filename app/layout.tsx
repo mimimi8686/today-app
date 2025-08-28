@@ -10,6 +10,10 @@ import { GA_ID } from "@/lib/gtag";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+export const viewport = {
+  themeColor: "#16a34a",
+};
+
 export const metadata: Metadata = {
   // 絶対URL用
   metadataBase: new URL("https://todayplan.jp"),
@@ -33,7 +37,6 @@ export const metadata: Metadata = {
 
   // PWA
   manifest: "/manifest.json",
-  themeColor: "#16a34a",
   icons: {
     icon: [
       { url: "/favicon.ico" },
