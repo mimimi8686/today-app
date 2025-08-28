@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { Trash2, Clock, Home } from "lucide-react";
@@ -36,6 +36,8 @@ function decodePlan(b64: string) {
 }
 
 export default function PlanPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState<Item[]>([]);
   const [startTime, setStartTime] = useState("09:00");
   const [loaded, setLoaded] = useState(false);
@@ -70,6 +72,22 @@ export default function PlanPage() {
       setLoaded(true);
     }
   }, []);
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+  
 
   // 以後の変更だけ保存
   useEffect(() => {
@@ -170,20 +188,103 @@ export default function PlanPage() {
       alert("タイムラインをコピーしました（テキスト）");
     }
   }
+  // --- 保存ヘルパー（3件制限。タイトル入力プロンプト付き） ---
+  async function saveCurrentTimeline(items: Item[], startTime: string) {
+    if (items.length === 0) {
+      alert("タイムラインが空です");
+      return;
+    }
+    const title = prompt("タイムライン名を入力してください（例：リラックスデー）")?.trim();
+    if (!title) return;
+
+    const payload = { items: items.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60 })), startTime };
+    const res = await fetch("/api/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, payload }),
+    });
+    if (res.ok) {
+      alert("保存しました。/history で確認できます。");
+    } else {
+      const j = await res.json().catch(() => ({}));
+      alert(j?.error ?? "保存に失敗しました");
+    }
+  }
+
+  // --- 短縮URLを発行して共有するヘルパー ---
+  async function onShareClick(items: Item[], startTime: string) {
+    // 共有用に必要最小限だけ送る
+    const payload = {
+      title: "今日のタイムライン",
+      request: { startTime },
+      ideas: items.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60 })),
+    };
+
+    const res = await fetch("/api/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const { url } = await res.json();
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: payload.title, url });
+        return;
+      }
+    } catch { /* noop（キャンセル等） */ }
+
+    await navigator.clipboard.writeText(url);
+    alert("共有リンクをコピーしました：\n" + url);
+  }
+
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
       {/* ヘッダー */}
       <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white"
-            title="TOPへ"
+        <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white"
+          title="メニュー"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          <Home className="h-5 w-5" />
+          <span className="hidden sm:inline">メニュー</span>
+          <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 opacity-70">
+            <path d="M5.25 7.5 10 12.25 14.75 7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </button>
+
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute z-50 mt-2 w-40 rounded-lg border bg-white py-1 shadow-lg"
           >
-            <Home className="h-5 w-5" />
-            <span className="hidden sm:inline">TOP</span>
-          </Link>
+            <Link
+              href="/"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+              role="menuitem"
+              onClick={() => setMenuOpen(false)}
+            >
+              TOP
+            </Link>
+            <Link
+              href="/history"
+              className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+              role="menuitem"
+              onClick={() => setMenuOpen(false)}
+            >
+              履歴
+            </Link>
+          </div>
+        )}
+      </div>
+
+        
           {/* 右上の要約ピル → px-6を削除して右端にそろえる */}
           <div className="flex items-center justify-end gap-2">
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
@@ -346,46 +447,62 @@ export default function PlanPage() {
         )}
 
         {/* 共有フッター */}
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="mt-8 flex flex-wrap items-center justify-end gap-3 sm:justify-between">
-            <div className="hidden sm:block text-sm text-gray-500">
-              共有して友だちと一緒に計画しよう！
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={async () => {
-                  if (items.length === 0) {
-                    alert("タイムラインが空です");
-                    return;
-                  }
-                  const t = encodePlan({ items, startTime });
-                  const url = `${location.origin}/plan?t=${t}`;
-                  await navigator.clipboard.writeText(url);
-                  alert("共有リンクをコピーしました！");
-                }}
-                className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
-                title="共有リンクをコピー"
-              >
-                共有
-              </button>
-              
-              <button
-                onClick={async () => {
-                  if (items.length === 0) {
-                    alert("タイムラインが空です");
-                    return;
-                  }
-                  await copyTimelineAsText();
-                }}
-                className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
-                title="テキストでコピー"
-              >
-                コピー
-              </button>
+          <div className="mx-auto max-w-5xl px-6">
+            <div className="mt-8">
+              <div className="mb-3 text-center text-sm text-gray-500">
+                友だちや家族と予定を共有しよう！
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {/* 保存 */}
+                <button
+                  onClick={async () => { await saveCurrentTimeline(items, startTime); }}
+                  className="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-emerald-700 hover:bg-emerald-100"
+                  title="タイムラインを保存"
+                >
+                  保存
+                </button>
+
+                {/* 共有 */}
+                <button
+                  onClick={async () => {
+                    if (items.length === 0) {
+                      alert("タイムラインが空です");
+                      return;
+                    }
+                    const t = encodePlan({ items, startTime });
+                    const url = `${location.origin}/plan?t=${t}`;
+                    await navigator.clipboard.writeText(url);
+                    alert("共有リンクをコピーしました！");
+                  }}
+                  className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
+                  title="共有リンクをコピー"
+                >
+                  共有
+                </button>
+
+                {/* コピー */}
+                <button
+                  onClick={async () => {
+                    if (items.length === 0) {
+                      alert("タイムラインが空です");
+                      return;
+                    }
+                    await copyTimelineAsText();
+                  }}
+                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                  title="テキストでコピー"
+                >
+                  コピー
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+          
       </section>
+      {/* コピーライト */}
+      <footer className="mt-12 py-6 text-center text-sm text-gray-400">
+        ©2025 rai-rai
+      </footer>
     </main>
   );
 }
