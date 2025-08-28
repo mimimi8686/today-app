@@ -67,9 +67,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', '${GA_ID}', { page_path: window.location.pathname });
+
+                // ✅ DebugViewで確実に見えるように
+                gtag('config', '${GA_ID}', {
+                  page_path: window.location.pathname,
+                  debug_mode: true
+                });
               `}
             </Script>
+
           </>
         )}
       </body>

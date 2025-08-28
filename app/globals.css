@@ -5,12 +5,11 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --color-brand: #16a34a;
+  --radius-card: 16px;
 }
+
 
 @media (prefers-color-scheme: dark) {
   :root {
