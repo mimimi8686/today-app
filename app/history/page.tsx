@@ -1,9 +1,9 @@
 // /app/history/page.tsx
 import "server-only";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { getDb } from "@/lib/_db.off";
 import { readUserId } from "@/lib/user";
-import NavMenu from "@/app/components/NavMenu";
+import NavMenu from "@/components/NavMenu";
 
 export const dynamic = "force-dynamic";
 

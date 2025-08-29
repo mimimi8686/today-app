@@ -1,6 +1,6 @@
 // /lib/shortlink.ts
 import "server-only";
-import { getDb } from "@/lib/db";
+import { getDb } from "@/lib/_db.off";
 import { customAlphabet } from "nanoid";
 
 const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 8);

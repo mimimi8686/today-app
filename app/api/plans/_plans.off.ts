@@ -1,6 +1,6 @@
 // /app/api/plans/route.ts
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getDb } from "@/lib/_db.off";
 import { USER_COOKIE, readUserId } from "@/lib/user";
 
 export const runtime = "nodejs";
