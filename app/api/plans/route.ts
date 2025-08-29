@@ -1,69 +1,81 @@
-import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase";
-
+// app/api/plans/route.ts
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// 保存
+import { supabaseServer } from "@/lib/supabase"; // ← ログインしていれば user_id を拾うため
+import { createClient } from "@supabase/supabase-js";
+
+// Admin（Service Role）クライアント（ブラウザには絶対出さない）
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← NEXT_PUBLIC なしの環境変数
+    { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch } }
+  );
+}
+
+// 端末Cookie（未ログイン用）
+function readDeviceId(req: Request) {
+  const m = /(?:^|;\s*)device_id=([^;]+)/.exec(req.headers.get("cookie") ?? "");
+  return m?.[1];
+}
+function setDeviceCookie(headers: Headers, deviceId: string) {
+  headers.append(
+    "Set-Cookie",
+    `device_id=${deviceId}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`
+  );
+}
+
+// --------- 保存（POST）---------
 export async function POST(req: Request) {
-  const supa = supabaseServer();
-  const { data: auth } = await supa.auth.getUser();
-  if (!auth?.user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const body = await req.json();
-  const title = (body?.title ?? "").trim();
+  const body = await req.json().catch(() => null);
+  const title = String(body?.title ?? "").trim();
   const payload = body?.payload ?? null;
-
   if (!title || !payload) {
-    return NextResponse.json({ error: "title and payload are required" }, { status: 400 });
+    return Response.json({ ok: false, error: "title and payload are required" }, { status: 400 });
   }
 
+  // ログインしていたら user_id を使う／していなければ device_id を使う
+  const { data: auth } = await supabaseServer().auth.getUser().catch(() => ({ data: null as any }));
+  let userId: string | null = auth?.user?.id ?? null;
+
+  let deviceId = readDeviceId(req) ?? crypto.randomUUID();
+  const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
+  setDeviceCookie(headers, deviceId); // 毎回延長（ない場合は新規発行）
+
+  const supa = supabaseAdmin();
   const { data, error } = await supa
     .from("plans")
-    .insert({
-      user_id: auth.user.id,
-      title,
-      payload,
-      device_id: body?.device_id ?? null,
-    })
-    .select()
+    .insert({ user_id: userId, device_id: deviceId, title, payload })
+    .select("id")
     .single();
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 400, headers });
   }
-
-  return NextResponse.json(data, { status: 201 });
+  return new Response(JSON.stringify({ ok: true, id: data?.id }), { status: 201, headers });
 }
 
-// 一覧
+// --------- 一覧（GET）---------
 export async function GET(req: Request) {
-  const supa = supabaseServer();
-  const { data: auth } = await supa.auth.getUser();
-  if (!auth?.user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const { data: auth } = await supabaseServer().auth.getUser().catch(() => ({ data: null as any }));
+  const supa = supabaseAdmin();
 
-  const url = new URL(req.url);
-  const limit = Math.max(1, Math.min(Number(url.searchParams.get("limit")) || 50, 100));
-  const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
-
-  const { data, error, count } = await supa
+  let query = supa
     .from("plans")
-    .select("*", { count: "exact" })
-    .eq("user_id", auth.user.id)
+    .select("id,title,payload,created_at")
     .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+    .limit(50);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (auth?.user?.id) {
+    query = query.eq("user_id", auth.user.id);
+  } else {
+    const deviceId = readDeviceId(req);
+    if (!deviceId) return Response.json({ items: [] });
+    query = query.eq("device_id", deviceId);
   }
 
-  return NextResponse.json({
-    items: data ?? [],
-    total: count ?? 0,
-    hasMore: count != null ? offset + limit < count : false,
-  });
+  const { data, error } = await query;
+  if (error) return Response.json({ error: error.message }, { status: 400 });
+  return Response.json({ items: data ?? [] });
 }
