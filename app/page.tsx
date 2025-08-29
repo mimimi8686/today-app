@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bookmark, Clock, Shuffle } from "lucide-react";
 import { labelFromTag } from "@/lib/tag-labels";
 import { gaEvent } from "@/lib/ga-event";
+import SaveIdeaButton from "@/components/SaveIdeaButton";
 
 
 type Idea = { id: string; title: string; tags?: string[]; duration?: number };
@@ -398,23 +399,34 @@ export default function Home() {
                       </div>
                     )}
 
-              <div className="mt-4 flex gap-2">
-                
-              <button
-                onClick={() => {
-                  toggleBookmark(i);
-                  gaEvent("bookmark_add", { page: "home", ideaId: i.id });
-                }}
-                className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
-                aria-pressed={active}
-                title={active ? "ブックマーク済み" : "ブックマーク"}
-              >
-                <Bookmark className="h-5 w-5" />
-              </button>
-                <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
-                  <Clock className="h-5 w-5" />
-                </Link>
-              </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {/* 保存ボタン（/api/ideas に POST） */}
+                    <SaveIdeaButton
+                      title={i.title}
+                      // DB側は text[] なので文字列配列で渡す
+                      tags={Array.isArray(i.tags) ? i.tags.map(String) : []}
+                      durationMin={Number(i.duration ?? 60)}
+                    />
+
+                    {/* 既存：ブックマーク */}
+                    <button
+                      onClick={() => {
+                        toggleBookmark(i);
+                        gaEvent("bookmark_add", { page: "home", ideaId: i.id });
+                      }}
+                      className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
+                      aria-pressed={active}
+                      title={active ? "ブックマーク済み" : "ブックマーク"}
+                    >
+                      <Bookmark className="h-5 w-5" />
+                    </button>
+
+                    {/* 既存：タイムラインへ */}
+                    <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
+                      <Clock className="h-5 w-5" />
+                    </Link>
+                  </div>
+
             </li>
           );
         })}

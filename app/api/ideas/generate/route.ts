@@ -1,4 +1,10 @@
 import activitiesJson from "@/data/activities.json";
+import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase";
+const supa = supabaseServer();
+// 以降、supa.from(...).select() など
+
+
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";

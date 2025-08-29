@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { Home } from "lucide-react";
+import { Home, Bookmark } from "lucide-react"; // ← 追加
 
 export default function NavMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,6 +53,19 @@ export default function NavMenu() {
           >
             TOP
           </Link>
+
+          <Link
+            href="/saved"                                  // ← 追加
+            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+            role="menuitem"
+            onClick={() => setMenuOpen(false)}
+          >
+            <span className="inline-flex items-center gap-2">
+              <Bookmark className="h-4 w-4" />
+              保存一覧
+            </span>
+          </Link>
+
           <Link
             href="/history"
             className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"

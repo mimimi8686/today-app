@@ -1,14 +1,14 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
+import Script from "next/script";
+import { Inter } from "next/font/google";
 
 import GATracker from "@/app/ga-tracker";
 import { GA_ID } from "@/lib/gtag";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+// ▼ Google Fonts: Inter に置き換え（Geist は google には無い）
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const viewport = {
   themeColor: "#16a34a",
@@ -17,6 +17,10 @@ export const viewport = {
 export const metadata: Metadata = {
   // 絶対URL用
   metadataBase: new URL("https://todayplan.jp"),
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "linear-gradient(135deg, #16a34a, #4ade80)" },
+    { media: "(prefers-color-scheme: dark)", color: "linear-gradient(135deg, #065f46, #16a34a)" },
+  ],
 
   // OGP / Twitter
   openGraph: {
@@ -37,6 +41,7 @@ export const metadata: Metadata = {
 
   // PWA
   manifest: "/manifest.json",
+
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -50,7 +55,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      {/* ▼ Inter の CSS 変数を body に付与（antialiased はそのまま） */}
+      <body className={`${inter.variable} antialiased`}>
         {/* ルーター遷移ごとにPV送信 */}
         <GATracker />
         {children}
@@ -75,7 +81,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 });
               `}
             </Script>
-
           </>
         )}
       </body>
