@@ -1,10 +1,4 @@
 import activitiesJson from "@/data/activities.json";
-import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase";
-const supa = supabaseServer();
-// 以降、supa.from(...).select() など
-
-
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -167,8 +161,7 @@ function normalizeConditions(arr?: string[]): CondFlags {
     return toHalf(String(x))
       .toLowerCase()
       .replace(/[（）()[]\[\]\s]/g, "")   // 括弧・空白
-      .replace(/[〜～~\-–—]/g, "")         // チルダ/波線/ダッシュ類
-      ;
+      .replace(/[〜～~\-–—]/g, "");       // チルダ/波線/ダッシュ類
   };
 
   for (const raw of arr) {
@@ -183,17 +176,15 @@ function normalizeConditions(arr?: string[]): CondFlags {
       f.wantBudget = true;
 
     // ---- 時間帯（短め/長め）----
-    // キーワード優先
     if (s.includes("短") || s.includes("short")) f.wantShort = true;
     if (s.includes("長") || s.includes("long"))  f.wantLong  = true;
 
-    // 数値ヒント（例: "〜60分", "90分以上", "90~" など）
-    // 60 を含めば短め、90 を含めば長め
+    // 数値ヒント
     if (/\b60\b/.test(s) || /60分/.test(s)) f.wantShort = true;
     if (/\b90\b/.test(s) || /90分/.test(s)) f.wantLong  = true;
   }
 
-  // “短め”と“長め”が同時に立ったら、ユーザの誤操作/表記揺れとみなし無効化（両方true→どちらもfalse）
+  // “短め”と“長め”が同時に立ったら無効化
   if (f.wantShort && f.wantLong) {
     f.wantShort = false;
     f.wantLong  = false;
@@ -206,7 +197,6 @@ function normalizeConditions(arr?: string[]): CondFlags {
 function toArray(x?: string | string[]): string[] {
   if (x == null) return [];
   if (Array.isArray(x)) return x;
-  // CSV も許容
   return String(x).split(/[,\s]+/).filter(Boolean);
 }
 
