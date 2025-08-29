@@ -1,25 +1,25 @@
-// app/api/plans/route.ts
+// app/api/plans/route.ts  —— 認証なし・端末Cookieで保存
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-import { supabaseServer } from "@/lib/supabase"; // ← ログインしていれば user_id を拾うため
 import { createClient } from "@supabase/supabase-js";
 
-// Admin（Service Role）クライアント（ブラウザには絶対出さない）
+// Admin（Service Role）クライアント：サーバ専用
 function supabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← NEXT_PUBLIC なしの環境変数
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch } }
   );
 }
 
-// 端末Cookie（未ログイン用）
+// 端末Cookie（device_id）
 function readDeviceId(req: Request) {
   const m = /(?:^|;\s*)device_id=([^;]+)/.exec(req.headers.get("cookie") ?? "");
   return m?.[1];
 }
 function setDeviceCookie(headers: Headers, deviceId: string) {
+  // 本番(HTTPS)前提。ローカルHTTPで使うときは Secure を外す
   headers.append(
     "Set-Cookie",
     `device_id=${deviceId}; Path=/; Max-Age=31536000; SameSite=Lax; Secure`
@@ -35,18 +35,15 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, error: "title and payload are required" }, { status: 400 });
   }
 
-  // ログインしていたら user_id を使う／していなければ device_id を使う
-  const { data: auth } = await supabaseServer().auth.getUser().catch(() => ({ data: null as any }));
-  let userId: string | null = auth?.user?.id ?? null;
-
+  // device_id を読み取り。なければ発行してSet-Cookie
   let deviceId = readDeviceId(req) ?? crypto.randomUUID();
   const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
-  setDeviceCookie(headers, deviceId); // 毎回延長（ない場合は新規発行）
+  setDeviceCookie(headers, deviceId);
 
   const supa = supabaseAdmin();
   const { data, error } = await supa
     .from("plans")
-    .insert({ user_id: userId, device_id: deviceId, title, payload })
+    .insert({ device_id: deviceId, title, payload })
     .select("id")
     .single();
 
@@ -56,26 +53,19 @@ export async function POST(req: Request) {
   return new Response(JSON.stringify({ ok: true, id: data?.id }), { status: 201, headers });
 }
 
-// --------- 一覧（GET）---------
+// --------- 履歴取得（GET）---------
 export async function GET(req: Request) {
-  const { data: auth } = await supabaseServer().auth.getUser().catch(() => ({ data: null as any }));
-  const supa = supabaseAdmin();
+  const deviceId = readDeviceId(req);
+  if (!deviceId) return Response.json({ items: [] });
 
-  let query = supa
+  const supa = supabaseAdmin();
+  const { data, error } = await supa
     .from("plans")
     .select("id,title,payload,created_at")
+    .eq("device_id", deviceId)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (auth?.user?.id) {
-    query = query.eq("user_id", auth.user.id);
-  } else {
-    const deviceId = readDeviceId(req);
-    if (!deviceId) return Response.json({ items: [] });
-    query = query.eq("device_id", deviceId);
-  }
-
-  const { data, error } = await query;
   if (error) return Response.json({ error: error.message }, { status: 400 });
   return Response.json({ items: data ?? [] });
 }
