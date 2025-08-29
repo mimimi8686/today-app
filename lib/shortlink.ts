@@ -16,26 +16,24 @@ export async function getOriginalUrl(id: string) {
 
 /* ========================= ここから追記 ========================= */
 
-/** 短縮リンクでやり取りするデータ型（仮） */
+/** 共有で扱う1アイデア */
 export type IdeaItem = {
   id: string;
   title: string;
-  // 必要なら他のプロパティを追加: e.g. tags?: string[]; duration?: number;
+  duration?: number;     // ← 追加（使っている箇所があるため）
+  // 必要なら他: tags?: string[]; place?: "indoor" | "outdoor";
 };
 
-/** 共有用ペイロード（仮） */
+/** 共有ペイロード */
 export type SharePayload = {
   ideas: IdeaItem[];
   title?: string;
+  request?: unknown | null; // ← 追加（data.request を参照しているため）
 };
 
-/**
- * IDから短縮リンク情報を読み込む（仮実装）
- * 後で Supabase 実装に差し替える想定
- */
+/** IDから短縮リンク情報を読み込む（仮実装） */
 export async function loadShortLink(id: string): Promise<SharePayload | null> {
-  // TODO: Supabase から id に対応する SharePayload を取得する実装に置き換え
-  // ひとまず型エラー回避のためのスタブ
+  // TODO: Supabase 実装に差し替え
   return null;
 }
 /* ========================= 追記ここまで ========================= */
