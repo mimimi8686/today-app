@@ -400,14 +400,6 @@ export default function Home() {
                     )}
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {/* 保存ボタン（/api/ideas に POST） */}
-                    <SaveIdeaButton
-                      title={i.title}
-                      // DB側は text[] なので文字列配列で渡す
-                      tags={Array.isArray(i.tags) ? i.tags.map(String) : []}
-                      durationMin={Number(i.duration ?? 60)}
-                    />
-
                     {/* 既存：ブックマーク */}
                     <button
                       onClick={() => {
