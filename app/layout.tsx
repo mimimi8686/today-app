@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     description: "もう迷わない。今日の行動が見つかるアプリ",
     url: "https://todayplan.jp",
     siteName: "今日なにする？",
-    images: [{ url: "/ogp_v2.png", width: 1200, height: 630 }],
+    images: [{ url: "/ogp_v3.png", width: 1200, height: 630 }],
     locale: "ja_JP",
     type: "website",
   },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "今日なにする？",
     description: "もう迷わない。今日の行動が見つかるアプリ",
-    images: ["/ogp_v2.png"],
+    images: ["/ogp_v3.png"],
   },
 
   // PWA
