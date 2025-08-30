@@ -1,32 +1,85 @@
 // components/NavMenu.tsx
 "use client";
-
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Home, X } from "lucide-react";
+import { createPortal } from "react-dom";
 
 export default function NavMenu() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const openMenu = useCallback(() => setOpen(true), []);
-  const closeMenu = useCallback(() => setOpen(false), []);
+  // Portal 先が使えるようになってから描画
+  useEffect(() => setMounted(true), []);
 
-  // ESCで閉じる + 背景スクロール固定
+  // ESC と body スクロール固定
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeMenu();
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
     window.addEventListener("keydown", onKey);
-    if (open) document.body.classList.add("overflow-hidden");
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.classList.remove("overflow-hidden");
-    };
-  }, [open, closeMenu]);
+    if (open) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+    }
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const Overlay = (
+    <div className="fixed inset-0 z-[1000]">
+      {/* 半透明の背景 */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={() => setOpen(false)}
+        aria-hidden="true"
+      />
+      {/* 左からスライドする本体 */}
+      <nav
+        role="dialog"
+        aria-modal="true"
+        className="absolute inset-y-0 left-0 z-[1001] h-full w-full max-w-[420px] bg-white shadow-xl flex flex-col animate-[slideIn_.18s_ease-out] will-change-transform"
+      >
+        <style jsx global>{`
+          @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+        `}</style>
+
+        {/* 上部バー（タイトルは不要とのことなので × のみ） */}
+        <div className="flex items-center justify-end px-4 py-3 border-b">
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="閉じる"
+            className="rounded p-1 hover:bg-gray-100"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {/* メニュー本体：余白を詰め、縦いっぱいスクロール可 */}
+        <ul className="flex-1 overflow-y-auto p-0">
+          {[
+            { href: "/", label: "TOP" },
+            { href: "/", label: "アイディア" }, // TOP=アイディアなので同じ
+            { href: "/history", label: "履歴" },
+          ].map((m) => (
+            <li key={m.href} className="border-b first:border-t">
+              <Link
+                href={m.href}
+                onClick={() => setOpen(false)}
+                className="block px-6 py-5 text-xl font-medium hover:bg-gray-50 active:bg-gray-100"
+              >
+                {m.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  );
 
   return (
     <>
-      {/* トリガー */}
+      {/* ヘッダーに置くトリガー（アイコン＋ラベル） */}
       <button
-        onClick={openMenu}
+        onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -36,70 +89,8 @@ export default function NavMenu() {
         <span className="hidden sm:inline">メニュー</span>
       </button>
 
-      {/* オーバーレイ + 左スライドパネル */}
-      {open && (
-        <div className="fixed inset-0 z-[100]">
-          {/* 背景 */}
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={closeMenu}
-            aria-hidden="true"
-          />
-
-          {/* パネル（全高 / 左から） */}
-          <nav
-            className="
-              absolute inset-y-0 left-0 z-[101]
-              h-full w-full max-w-[420px] bg-white shadow-xl
-              flex flex-col
-              animate-[slideInLeft_.18s_ease-out]
-            "
-            role="dialog"
-            aria-modal="true"
-          >
-            <style jsx global>{`
-              @keyframes slideInLeft {
-                from { transform: translateX(-100%); }
-                to   { transform: translateX(0%); }
-              }
-            `}</style>
-
-            {/* 上：閉じる（「メニュー」文字は無し） */}
-            <div className="flex items-center justify-end px-4 py-4">
-              <button
-                onClick={closeMenu}
-                className="rounded-full p-2 hover:bg-gray-100"
-                aria-label="閉じる"
-                title="閉じる"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* 本体：ここだけスクロール */}
-            <div className="flex-1 overflow-y-auto">
-              <ul>
-                {[
-                  { href: "/", label: "TOP" },
-                  { href: "/", label: "アイディア" },     // TOPと同じ
-                  { href: "/history", label: "履歴" },
-                ].map((m, i) => (
-                  <li key={m.href}>
-                    <Link
-                      href={m.href}
-                      onClick={closeMenu}
-                      className="block w-full px-6 py-6 text-2xl font-medium hover:bg-gray-50 active:bg-gray-100"
-                    >
-                      {m.label}
-                    </Link>
-                    {i < 2 && <div className="h-px w-full bg-gray-200" />}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
-        </div>
-      )}
+      {/* Portal で body 直下に描画（親ヘッダーの影響を受けない） */}
+      {mounted && open && createPortal(Overlay, document.body)}
     </>
   );
 }
