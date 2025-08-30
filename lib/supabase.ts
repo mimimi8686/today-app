@@ -1,6 +1,7 @@
 // lib/supabase.ts
 import { createBrowserClient, createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createClient } from "@supabase/supabase-js"; // ← 追加
 
 /** クライアント（ブラウザ用） */
 export const supabaseBrowser = () =>
@@ -34,3 +35,13 @@ export const supabaseServer = () => {
     }
   );
 };
+/** サーバ（API専用・RLSを無視できる service role クライアント）← これを追加 */
+export const supabaseAdmin = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!, // ← anon ではなく service role
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { fetch },
+    }
+  );

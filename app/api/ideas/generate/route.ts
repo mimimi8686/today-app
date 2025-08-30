@@ -1,4 +1,6 @@
 import activitiesJson from "@/data/activities.json";
+import { supabaseAdmin } from "@/lib/supabase";
+const supa = supabaseAdmin();
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
