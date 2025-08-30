@@ -1,29 +1,29 @@
-// components/SavedIdeaButton.tsx
+// components/SaveIdeaButton.tsx
 "use client";
 
 import { useState } from "react";
+import { Bookmark } from "lucide-react";
 
-export default function SavedIdeaButton({ title }: { title: string }) {
+export default function SaveIdeaButton({ title }: { title: string }) {
   const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   async function onClick() {
     if (saving) return;
     setSaving(true);
-    setDone(false);
     try {
       const res = await fetch("/api/ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
         credentials: "include",
+        body: JSON.stringify({ title }),
       });
       const j = await res.json();
       if (!res.ok) throw new Error(j?.error || "保存に失敗しました");
-      setDone(true);
-      setTimeout(() => setDone(false), 1500);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500); // 1.5秒で元に戻す（継続点灯にしたいなら消してください）
     } catch (e: any) {
-      alert(e.message || String(e));
+      alert(e?.message || String(e));
     } finally {
       setSaving(false);
     }
@@ -32,11 +32,17 @@ export default function SavedIdeaButton({ title }: { title: string }) {
   return (
     <button
       onClick={onClick}
-      className={"rounded-full border p-2 text-gray-600 hover:bg-gray-50 " + (done ? "bg-emerald-50 text-emerald-700" : "")}
-      title="このアイデアを保存"
-      aria-label="このアイデアを保存"
+      disabled={saving}
+      className={
+        "rounded-full border p-2 transition " +
+        (saved
+          ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+          : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50")
+      }
+      title={saved ? "保存しました" : "このアイデアを保存"}
+      aria-pressed={saved}
     >
-      {done ? "✔️" : "🔖"}
+      <Bookmark className="h-5 w-5" />
     </button>
   );
 }

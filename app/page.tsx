@@ -407,47 +407,53 @@ export default function Home() {
                 return (
                   <li
                     key={i.id}
-                    onClick={() => handleCardToggle(i)}
+                    onClick={() => {
+                      // --- タイムラインに追加する処理 ---
+                      const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
+                      // すでにあるかチェック
+                      if (!list.find((x) => x.id === i.id)) {
+                        list.push(i);
+                        localStorage.setItem("bookmarks", JSON.stringify(list));
+                        setBookmarkedIds(new Set(list.map((x) => x.id)));
+                        setBookmarkCount(list.length);
+                      }
+                    }}
                     className={
-                      "cursor-pointer rounded-2xl border p-5 shadow-sm transition " +
-                      (bookmarkedIds.has(i.id) ? "border-emerald-400 bg-emerald-50" : "bg-white hover:bg-gray-50")
+                      "relative cursor-pointer rounded-2xl border p-5 shadow-sm transition " +
+                      (bookmarkedIds.has(i.id)
+                        ? "bg-emerald-100 border-emerald-500 text-emerald-900"
+                        : "bg-white border-gray-200 hover:shadow")
                     }
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold">{i.title}</h3>
-
-                      {/* 保存（Supabase）。カード選択に影響させない */}
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <SaveIdeaButton title={i.title} />
-                      </div>
+                    {/* 右上：ブックマークボタン（Supabase保存用） */}
+                    <div
+                      onClick={(e) => e.stopPropagation()} // ← カードクリックと区別
+                      className="absolute top-3 right-3"
+                    >
+                      <SaveIdeaButton title={i.title} />
                     </div>
 
-                    <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
+                    {/* タイトル */}
+                    <h3 className="text-lg font-semibold">{i.title}</h3>
+                    <p className="mt-1 text-sm text-gray-600">
+                      所要目安：{i.duration ?? 60}分
+                    </p>
 
+                    {/* タグ */}
                     {jaTags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {jaTags.map((t) => (
-                          <span key={t} className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700">
+                          <span
+                            key={t}
+                            className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700"
+                          >
                             {t}
                           </span>
                         ))}
                       </div>
                     )}
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {/* タイムラインへ。クリックがカードに伝播しないように */}
-                      <Link
-                        href="/plan"
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded-full border p-2 hover:bg-gray-50"
-                        title="タイムラインで見る"
-                      >
-                        <Clock className="h-5 w-5" />
-                      </Link>
-                    </div>
                   </li>
-
-          );
+                );
         })}
       </ul>
 
