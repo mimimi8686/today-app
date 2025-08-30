@@ -11,7 +11,7 @@ import { GA_ID } from "@/lib/gtag";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const viewport = {
-  themeColor: "#16a34a",
+  themeColor: "#f0fdfa",
 };
 
 export const metadata: Metadata = {
