@@ -49,9 +49,9 @@ export default function NavMenu() {
         <ul className="flex-1 overflow-y-auto p-0">
           {[
             { href: "/", label: "今日なにする？" },
+            { href: "/plan", label: "今日のタイムライン" },
             { href: "/saved", label: "保存したアイディア" },
             { href: "/history", label: "保存したタイムライン" },
-            { href: "/plan", label: "今日のタイムライン" },
           ].map(m => (
             <li key={m.href} className="border-b first:border-t">
               <Link
