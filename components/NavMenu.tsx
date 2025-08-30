@@ -36,8 +36,13 @@ export default function NavMenu() {
       <nav
         role="dialog"
         aria-modal="true"
-        className="absolute inset-y-0 left-0 z-[1001] h-full w-full max-w-[420px] bg-white shadow-xl flex flex-col animate-[slideIn_.18s_ease-out] will-change-transform"
+        className="absolute inset-y-0 left-0 z-[1001] h-full
+                  w-[70%] max-w-none md:max-w-[480px]  /* ← 幅調整：モバイル70% / 広い画面は上限 */
+                  bg-white shadow-xl rounded-r-2xl      /* ← 右端を少し丸める（任意） */
+                  flex flex-col
+                  animate-[slideIn_.18s_ease-out] will-change-transform"
       >
+
         <style jsx global>{`
           @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
         `}</style>
