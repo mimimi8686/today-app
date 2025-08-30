@@ -34,15 +34,22 @@ export default function HistoryPage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/plans", { credentials: "include", cache: "no-store" });
-        const j = await res.json();
+        const res = await fetch("/api/plans", { cache: "no-store" });
+  
+        // 空レスポンスでも落ちないように first text → safe JSON
+        const text = await res.text();
+        let j: any = {};
+        if (text) {
+          try { j = JSON.parse(text); } catch { /* パース失敗でも j は {} のまま */ }
+        }
+  
         if (!res.ok) {
-          setError(j?.error ?? "読み込みに失敗しました");
+          setError(j?.error ?? `読み込みに失敗しました (HTTP ${res.status})`);
         } else {
           setItems(Array.isArray(j?.items) ? j.items : []);
         }
-      } catch (e: any) {
-        setError(String(e?.message || e));
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
@@ -101,6 +108,7 @@ export default function HistoryPage() {
     }
     setItems(prev => prev.filter(x => x.id !== p.id));
   }
+
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
