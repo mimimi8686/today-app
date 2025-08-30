@@ -1,46 +1,47 @@
 "use client";
-
 import { useState } from "react";
 import { Bookmark, Check } from "lucide-react";
 
-export default function SaveIdeaButton({ title }: { title: string }) {
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false); // ← 保存したらチェック表示のまま
+type Props = { title: string };
+
+export default function SaveIdeaButton({ title }: Props) {
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   async function onClick() {
-    if (saving || saved) return;
-    setSaving(true);
+    if (busy || done) return;
+    setDone(true);          // ← 先にアイコンをチェックへ
+    setBusy(true);
     try {
       const res = await fetch("/api/ideas", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ title }),
       });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j?.error || "保存に失敗しました");
-      setSaved(true);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "保存に失敗しました");
+      }
     } catch (e: any) {
-      alert(e?.message || String(e));
+      // 失敗したら元に戻す
+      setDone(false);
+      alert(e?.message || "保存に失敗しました");
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
 
   return (
     <button
       onClick={onClick}
-      disabled={saving || saved}
+      disabled={busy}
+      title={done ? "保存済み" : "保存"}
       className={
-        "rounded-full border p-2 transition " +
-        (saved
-          ? "border-emerald-500 bg-white text-emerald-700"
-          : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50")
+        "inline-flex h-9 w-9 items-center justify-center rounded-full border transition " +
+        (done ? "border-emerald-400 bg-white text-emerald-700" : "border-gray-300 bg-white hover:bg-gray-50")
       }
-      title={saved ? "保存済み" : "このアイデアを保存"}
-      aria-pressed={saved}
     >
-      {saved ? <Check className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+      {done ? <Check className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
     </button>
   );
 }

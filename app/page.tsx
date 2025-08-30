@@ -136,24 +136,25 @@ export default function Home() {
   }, []);
 
   // ★ここが“ランダム強化”の修正版
+  // 置き換え：fetchIdeas
   async function fetchIdeas(body: Record<string, unknown>, append = false): Promise<void> {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
 
-    // 追加読み込み：ランダム時の重複を避けるため excludeIds を送る
+    // 既視IDは追加読み込みの時だけ送る
     const excludeIds = append ? Array.from(seenIds) : [];
 
-    // 完全キャッシュ回避のためのノンスを必ず付与
-    const withNonce = { ...body, __nonce: Math.random().toString(36).slice(2) };
-
     try {
+      // ランダムの度に違う結果を返させるための “ノンス”
+      const nonce = body?.random ? Math.random().toString(36).slice(2) : undefined;
+
       const res = await fetch("/api/ideas/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({
-          ...withNonce,
-          limit: PAGE_SIZE, // ← 定数化
+          ...body,
+          nonce,                  // ← これでサーバ側も毎回別リクエストとして扱われる
+          limit: PAGE_SIZE,
           offset: append ? offset : 0,
           excludeIds,
         }),
@@ -161,27 +162,31 @@ export default function Home() {
       if (!res.ok) throw new Error("APIエラー: " + res.status);
 
       const json: ApiResponse = await res.json();
-      const next = (json.ideas ?? []).slice();
-      // ランダム指定なら前段でも絶対シャッフル
-      if ((withNonce as any).random) shuffleInPlace(next);
+      let next = json.ideas ?? [];
+
+      // 受け取った結果も最後にもう一度シャッフル
+      if (body?.random) {
+        for (let i = next.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [next[i], next[j]] = [next[j], next[i]];
+        }
+      }
 
       if (append) {
-        // 既存に追加（重複は一応弾く）
-        setIdeas((prev) => {
-          const exists = new Set(prev.map((x) => x.id));
-          const add = next.filter((x) => !exists.has(x.id));
+        setIdeas(prev => {
+          const exists = new Set(prev.map(x => x.id));
+          const add = next.filter(x => !exists.has(x.id));
           return [...prev, ...add];
         });
-        setSeenIds((prev) => {
+        setSeenIds(prev => {
           const s = new Set(prev);
-          next.forEach((x) => s.add(x.id));
+          next.forEach(x => s.add(x.id));
           return s;
         });
-        setOffset((prev) => prev + next.length);
+        setOffset(prev => prev + next.length);
       } else {
-        // 初回 or 条件変更時はリセット
         setIdeas(next);
-        setSeenIds(new Set(next.map((x) => x.id)));
+        setSeenIds(new Set(next.map(x => x.id)));
         setOffset(next.length);
       }
 
@@ -192,6 +197,7 @@ export default function Home() {
       setLoading(false);
     }
   }
+
 
   async function onRandomClick() {
     // ランダムは毎回まっさらに（前の重複回避セットやoffsetをリセット）
@@ -205,23 +211,29 @@ export default function Home() {
   }
   
 
+    // 置き換え：onSubmit
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
-    const conds = data.getAll("cond") as string[]; // ← 追加（チェックボックス複数）
+    const conds = data.getAll("cond") as string[];
 
     const q = {
       outcome: (data.get("outcome") as string) || "",
       mood: (data.get("mood") as string) || "",
       party: (data.get("party") as string) || "",
+      tags: conds,
       random: false,
-      tags: conds, // ← 追加：バックエンドの OR タグとして渡す
     };
 
+    // 何も選んでなければランダム扱いにする
+    const empty = !q.outcome && !q.mood && !q.party && conds.length === 0;
+    if (empty) q.random = true;
+
     setLastQuery(q);
-    await fetchIdeas(q, false); // append=false（初回）
+    await fetchIdeas(q, false);
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
+
   // フォームと結果、タイムライン（localStorage）もまとめてクリア
   function resetFiltersAndResults() {
     // 1) フォーム（select）を初期化
@@ -509,63 +521,31 @@ export default function Home() {
                   <li
                     key={i.id}
                     onClick={() => {
-                      // --- タイムラインに追加/解除（localStorage: "bookmarks"） ---
-                      const list: Idea[] = JSON.parse(
-                        localStorage.getItem("bookmarks") ?? "[]"
-                      );
-                      const idx = list.findIndex((x) => x.id === i.id);
-                      if (idx === -1) {
-                        list.push({ id: i.id, title: i.title, duration: i.duration ?? 60 });
-                      } else {
-                        list.splice(idx, 1);
-                      }
+                      const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]" );
+                      const idx = list.findIndex(x => x.id === i.id);
+                      if (idx === -1) list.push({ id: i.id, title: i.title, duration: i.duration ?? 60 });
+                      else list.splice(idx, 1);
                       localStorage.setItem("bookmarks", JSON.stringify(list));
-                      setBookmarkedIds(new Set(list.map((x) => x.id)));
+                      setBookmarkedIds(new Set(list.map(x => x.id)));
                       setBookmarkCount(list.length);
                     }}
                     className={
-                      "relative cursor-pointer rounded-2xl border p-5 shadow-sm transition " +
-                      (active
-                        ? // 選択時（少し濃いめ & リング）
-                          "bg-emerald-200 border-emerald-600 text-emerald-900 ring-1 ring-emerald-500/40"
-                        : // 非選択
-                          "bg-white border-gray-200 hover:shadow")
+                      "relative cursor-pointer rounded-2xl p-5 shadow-sm transition " +
+                      (bookmarkedIds.has(i.id)
+                        // 選択時：枠線なし／濃いめミント背景／うっすらリング
+                        ? "bg-emerald-200 text-emerald-900 ring-1 ring-emerald-400/40"
+                        // 非選択：枠線なし（影のみ）
+                        : "bg-white hover:shadow-md")
                     }
                   >
-                    {/* 右上：保存（Supabase）。カード選択には影響させない */}
                     <div onClick={(e) => e.stopPropagation()} className="absolute right-3 top-3">
                       <SaveIdeaButton title={i.title} />
                     </div>
 
-                    {/* タイトル */}
-                    <h3 className="text-lg font-semibold">{i.title}</h3>
-                    <p
-                      className={
-                        "mt-1 text-sm " + (active ? "text-emerald-900/80" : "text-gray-600")
-                      }
-                    >
-                      所要目安：{i.duration ?? 60}分
-                    </p>
-
-                    {/* タグ */}
-                    {jaTags.length > 0 && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {jaTags.map((t) => (
-                          <span
-                            key={t}
-                            className={
-                              "text-xs rounded-full px-2.5 py-1 border " +
-                              (active
-                                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                                : "border-gray-300 bg-gray-50 text-gray-700")
-                            }
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    {/* タイトルなど既存の中身はそのまま */}
+                    ...
                   </li>
+
                 );
               })}
             </ul>

@@ -1,81 +1,71 @@
+// components/NavMenu.tsx
 "use client";
-
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Home, Bookmark } from "lucide-react"; // ← 追加
+import { Home } from "lucide-react";
 
 export default function NavMenu() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
+  const [open, setOpen] = useState(false);
+  // ESCや戻るで閉じる
   useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setOpen(false); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <>
       <button
-        onClick={() => setMenuOpen((v) => !v)}
+        onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white"
+        aria-haspopup="dialog"
+        aria-expanded={open}
         title="メニュー"
-        aria-haspopup="menu"
-        aria-expanded={menuOpen}
       >
-        <Home className="h-5 w-5" />
-        <span className="hidden sm:inline">メニュー</span>
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4 opacity-70">
-          <path d="M5.25 7.5 10 12.25 14.75 7.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
+        <Home className="h-5 w-5" /><span className="hidden sm:inline">メニュー</span>
       </button>
 
-      {menuOpen && (
-        <div
-          role="menu"
-          className="absolute z-50 mt-2 w-40 rounded-lg border bg-white py-1 shadow-lg"
-        >
-          <Link
-            href="/"
-            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
-            role="menuitem"
-            onClick={() => setMenuOpen(false)}
+      {/* オーバーレイ */}
+      {open && (
+        <div className="fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setOpen(false)}
+          />
+          <nav
+            className="absolute inset-y-0 right-0 w-[85%] max-w-[360px] bg-white shadow-xl
+                       animate-[slideIn_.18s_ease-out] will-change-transform"
+            style={{ boxShadow: "-8px 0 24px rgba(0,0,0,.15)" }}
           >
-            TOP
-          </Link>
+            <style jsx global>{`
+              @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+            `}</style>
 
-          <Link
-            href="/saved"                                  // ← 追加
-            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
-            role="menuitem"
-            onClick={() => setMenuOpen(false)}
-          >
-            <span className="inline-flex items-center gap-2">
-              <Bookmark className="h-4 w-4" />
-              保存一覧
-            </span>
-          </Link>
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <span className="text-lg font-semibold">メニュー</span>
+              <button onClick={() => setOpen(false)} className="text-sm underline">閉じる</button>
+            </div>
 
-          <Link
-            href="/history"
-            className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
-            role="menuitem"
-            onClick={() => setMenuOpen(false)}
-          >
-            履歴
-          </Link>
+            <ul className="p-3">
+              {[
+                { href: "/", label: "TOP" },
+                { href: "/", label: "アイディア" },    // TOP=アイディア一覧なので同じ遷移でOK
+                { href: "/history", label: "履歴" },
+              ].map((m) => (
+                <li key={m.href}>
+                  <Link
+                    href={m.href}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-xl px-4 py-4 text-xl hover:bg-gray-50 active:bg-gray-100"
+                  >
+                    {m.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
       )}
-    </div>
+    </>
   );
 }
