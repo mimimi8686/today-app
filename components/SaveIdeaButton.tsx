@@ -32,7 +32,7 @@ export default function SaveIdeaButton({ title }: Props) {
 
   async function onClick() {
     if (busy || done) return;
-    setDone(true);          // 先にチェック表示
+    setDone(true);   // 先にチェック表示
     setBusy(true);
     try {
       const res = await fetch("/api/ideas", {
@@ -40,24 +40,28 @@ export default function SaveIdeaButton({ title }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
       });
-      const j = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
+  
+      // API は { existed: true } を返すことがある
+      const j = await res.json().catch(() => ({} as any));
+  
+      if (res.status === 201) {
+        // 新規保存：必要なら通知
+        // alert("保存しました！\n\n👉 保存したアイディア：/saved");
+      } else if (res.ok && j?.existed) {
+        // すでに保存済み
+        // alert("すでに保存されています");
+      } else {
         throw new Error(j?.error || "保存に失敗しました");
       }
-
-      // APIが { duplicated: true } を返した時は「すでに保存されています」
-      if (j?.duplicated) {
-        alert("すでに保存されています");
-      }
-      // 正常保存/重複どちらでも done のまま
     } catch (e: any) {
-      setDone(false); // 失敗なら元に戻す
+      // 失敗したら元に戻す
+      setDone(false);
       alert(e?.message || "保存に失敗しました");
     } finally {
       setBusy(false);
     }
   }
+  
 
   return (
     <button

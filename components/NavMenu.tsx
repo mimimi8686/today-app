@@ -28,14 +28,15 @@ export default function NavMenu() {
       {/* 背景：タップで閉じる */}
       <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} aria-hidden="true" />
       {/* 左からスライド（幅70%） */}
-      <nav
-        role="dialog" aria-modal="true"
-        className="absolute inset-y-0 left-0 z-50 h-full
-                   w-[70%] max-w-none md:max-w-[480px]
-                   bg-white shadow-xl rounded-r-2xl
-                   flex flex-col
-                   animate-[slideIn_.18s_ease-out] will-change-transform"
-      >
+        <nav
+         role="dialog" aria-modal="true"
+         className="absolute inset-y-0 left-0 z-50 h-full
+            w-[70%] max-w-none md:max-w-[480px]
+            bg-white text-gray-900 shadow-xl rounded-r-2xl
+            pt-[max(16px,env(safe-area-inset-top))] pb-[env(safe-area-inset-bottom)]
+            flex flex-col
+            animate-[slideIn_.18s_ease-out] will-change-transform"
+       >
         <style jsx global>{`
           @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
         `}</style>
@@ -57,7 +58,7 @@ export default function NavMenu() {
               <Link
                 href={m.href}
                 onClick={() => setOpen(false)}
-                className="block px-6 py-5 text-xl font-medium hover:bg-gray-50 active:bg-gray-100"
+                className="block px-6 py-5 text-xl font-medium text-gray-900 hover:bg-gray-50 active:bg-gray-100"
               >
                 {m.label}
               </Link>
