@@ -10,7 +10,7 @@ export default function SaveIdeaButton({ title }: Props) {
 
   async function onClick() {
     if (busy || done) return;
-    setDone(true);          // ← 先にアイコンをチェックへ
+    setDone(true);          // 先にチェック表示
     setBusy(true);
     try {
       const res = await fetch("/api/ideas", {
@@ -22,11 +22,8 @@ export default function SaveIdeaButton({ title }: Props) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error || "保存に失敗しました");
       }
-      alert("保存しました！ 履歴ページから確認できます。\n\n👉 /history");
-
     } catch (e: any) {
-      // 失敗したら元に戻す
-      setDone(false);
+      setDone(false); // 失敗なら元に戻す
       alert(e?.message || "保存に失敗しました");
     } finally {
       setBusy(false);
@@ -37,13 +34,16 @@ export default function SaveIdeaButton({ title }: Props) {
     <button
       onClick={onClick}
       disabled={busy}
+      aria-label={done ? "保存済み" : "保存"}
       title={done ? "保存済み" : "保存"}
       className={
-        "inline-flex h-9 w-9 items-center justify-center rounded-full border transition " +
-        (done ? "border-emerald-400 bg-white text-emerald-700" : "border-gray-300 bg-white hover:bg-gray-50")
+        "inline-flex h-10 w-10 items-center justify-center rounded-full border transition " +
+        (done
+          ? "border-emerald-400 bg-white text-emerald-700"
+          : "border-gray-300 bg-white hover:bg-gray-50")
       }
     >
-      {done ? <Check className="h-5 w-5" /> : <Bookmark className="h-5 w-5" />}
+      {done ? <Check className="h-6 w-6" /> : <Bookmark className="h-6 w-6" />}
     </button>
   );
 }
