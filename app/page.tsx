@@ -7,7 +7,6 @@ import { labelFromTag } from "@/lib/tag-labels";
 import { gaEvent } from "@/lib/ga-event";
 import SaveIdeaButton from "@/components/SaveIdeaButton";
 
-
 type Idea = { id: string; title: string; tags?: string[]; duration?: number };
 
 // 名前空間タグを日本語ラベルに変換
@@ -67,19 +66,17 @@ const TAG_LABELS: Record<string, string> = {
   "cat:errand": "用事",
 };
 
-
 export default function Home() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
   const PAGE_SIZE = 6; // 1ページの取得件数s
-  const [offset, setOffset] = useState(0);           // 非ランダム用
+  const [offset, setOffset] = useState(0); // 非ランダム用
   const [seenIds, setSeenIds] = useState<Set<string>>(new Set()); // ランダム用
   const [hasMore, setHasMore] = useState(false);
   // 直近の検索条件を保持（もっと見る で再利用）
   const [lastQuery, setLastQuery] = useState<Record<string, unknown>>({});
 
-
-    // APIの1件分
+  // APIの1件分
   type IdeaFromApi = {
     id: string;
     title: string;
@@ -108,12 +105,23 @@ export default function Home() {
   }
   // localStorage "bookmarks" の読み書き（/plan が読む形式）
   function readBookmarks(): { id: string; title: string; duration?: number }[] {
-    try { return JSON.parse(localStorage.getItem("bookmarks") || "[]"); } catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem("bookmarks") || "[]");
+    } catch {
+      return [];
+    }
   }
   function writeBookmarks(list: { id: string; title: string; duration?: number }[]) {
     localStorage.setItem("bookmarks", JSON.stringify(list));
   }
 
+  // 配列をインプレースでシャッフル（Fisher–Yates）
+  function shuffleInPlace<T>(arr: T[]) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
 
   // フィルター state（今回のテストでは未使用でもOK）
   const [error, setError] = useState<string | null>(null);
@@ -127,48 +135,57 @@ export default function Home() {
     setBookmarkCount(list.length);
   }, []);
 
+  // ★ここが“ランダム強化”の修正版
   async function fetchIdeas(body: Record<string, unknown>, append = false): Promise<void> {
-    setLoading(true); setError(null);
-  
+    setLoading(true);
+    setError(null);
+
     // 追加読み込み：ランダム時の重複を避けるため excludeIds を送る
     const excludeIds = append ? Array.from(seenIds) : [];
-  
+
+    // 完全キャッシュ回避のためのノンスを必ず付与
+    const withNonce = { ...body, __nonce: Math.random().toString(36).slice(2) };
+
     try {
       const res = await fetch("/api/ideas/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
         body: JSON.stringify({
-          ...body,
-          limit: PAGE_SIZE,        // ← 定数化
+          ...withNonce,
+          limit: PAGE_SIZE, // ← 定数化
           offset: append ? offset : 0,
-          excludeIds: append ? Array.from(seenIds) : [],
+          excludeIds,
         }),
       });
       if (!res.ok) throw new Error("APIエラー: " + res.status);
+
       const json: ApiResponse = await res.json();
-      const next = json.ideas ?? [];
-  
+
+      // 毎回“ガチでランダム”に：random の時は前段でもシャッフル
+      const next = (json.ideas ?? []).slice();
+      if ((withNonce as any).random) shuffleInPlace(next);
+
       if (append) {
         // 既存に追加（重複は一応弾く）
-        setIdeas(prev => {
-          const exists = new Set(prev.map(x => x.id));
-          const add = next.filter(x => !exists.has(x.id));
+        setIdeas((prev) => {
+          const exists = new Set(prev.map((x) => x.id));
+          const add = next.filter((x) => !exists.has(x.id));
           return [...prev, ...add];
         });
-        setSeenIds(prev => {
+        setSeenIds((prev) => {
           const s = new Set(prev);
-          next.forEach(x => s.add(x.id));
+          next.forEach((x) => s.add(x.id));
           return s;
         });
-        setOffset(prev => prev + next.length);
+        setOffset((prev) => prev + next.length);
       } else {
         // 初回 or 条件変更時はリセット
         setIdeas(next);
-        setSeenIds(new Set(next.map(x => x.id)));
+        setSeenIds(new Set(next.map((x) => x.id)));
         setOffset(next.length);
       }
-  
+
       setHasMore(!!json.hasMore);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -176,14 +193,14 @@ export default function Home() {
       setLoading(false);
     }
   }
-  
+
   async function onRandomClick() {
     const q = { random: true };
     setLastQuery(q);
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-  
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const data = new FormData(e.currentTarget);
@@ -201,7 +218,7 @@ export default function Home() {
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
-    // フォームと結果、タイムライン（localStorage）もまとめてクリア
+  // フォームと結果、タイムライン（localStorage）もまとめてクリア
   function resetFiltersAndResults() {
     // 1) フォーム（select）を初期化
     formRef.current?.reset();
@@ -215,13 +232,13 @@ export default function Home() {
 
     // 3) タイムライン（ブックマーク）も削除
     localStorage.setItem("bookmarks", JSON.stringify([]));
-    setBookmarkedIds(new Set());  // 画面右上のバッジ用
+    setBookmarkedIds(new Set()); // 画面右上のバッジ用
     setBookmarkCount(0);
-}
+  }
   function handleClearForm() {
     // フォームの入力を初期化
     formRef.current?.reset();
-  
+
     // 検索結果やページング状態も初期化
     setIdeas([]);
     setHasMore(false);
@@ -230,12 +247,70 @@ export default function Home() {
     setLastQuery({});
     setError(null);
   }
-  
+  // --- 画面状態の簡易保存（戻ってきても維持）：sessionStorage ---
+  const PERSIST_KEY = "home_state_v1";
+
+  function getFormValues() {
+    if (!formRef.current) return { outcome: "", mood: "", party: "", cond: [] as string[] };
+    const fd = new FormData(formRef.current);
+    return {
+      outcome: (fd.get("outcome") as string) || "",
+      mood: (fd.get("mood") as string) || "",
+      party: (fd.get("party") as string) || "",
+      cond: (fd.getAll("cond") as string[]) || [],
+    };
+  }
+
+  function setFormValues(v: { outcome?: string; mood?: string; party?: string; cond?: string[] }) {
+    if (!formRef.current || !v) return;
+    const $ = formRef.current.elements as any;
+
+    if ($.outcome) ($.outcome as HTMLSelectElement).value = v.outcome ?? "";
+    if ($.mood) ($.mood as HTMLSelectElement).value = v.mood ?? "";
+    if ($.party) ($.party as HTMLSelectElement).value = v.party ?? "";
+
+    const boxes = formRef.current.querySelectorAll<HTMLInputElement>('input[name="cond"]');
+    const set = new Set(v.cond ?? []);
+    boxes.forEach((b) => {
+      b.checked = set.has(b.value);
+    });
+  }
+
+  // 初回：保存済み状態を復元
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(PERSIST_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.ideas) setIdeas(s.ideas);
+      if (s?.hasMore != null) setHasMore(!!s.hasMore);
+      if (s?.offset != null) setOffset(s.offset);
+      if (s?.lastQuery) setLastQuery(s.lastQuery);
+      // フォームはマウント直後にDOMが揃ってから値を入れる
+      setTimeout(() => setFormValues(s.form || {}), 0);
+    } catch {
+      /* noop */
+    }
+  }, []);
+
+  // 変更のたびに保存（結果・ページング・クエリ・フォーム）
+  useEffect(() => {
+    const payload = {
+      ideas,
+      hasMore,
+      offset,
+      lastQuery,
+      form: getFormValues(),
+    };
+    try {
+      sessionStorage.setItem(PERSIST_KEY, JSON.stringify(payload));
+    } catch {}
+  }, [ideas, hasMore, offset, lastQuery]);
 
   function handleCardToggle(item: Idea) {
     const list = readBookmarks();
     const idx = list.findIndex((x) => x.id === item.id);
-  
+
     if (idx === -1) {
       // 追加（duration 初期値は 60 分に揃える）
       list.push({ id: item.id, title: item.title, duration: item.duration ?? 60 });
@@ -243,15 +318,15 @@ export default function Home() {
       // 解除
       list.splice(idx, 1);
     }
-  
+
     writeBookmarks(list);
     setBookmarkedIds(new Set(list.map((x) => x.id)));
     setBookmarkCount(list.length);
-  
+
     // 任意のイベント
     gaEvent("timeline_toggle", { page: "home", ideaId: item.id, selected: idx === -1 });
   }
-  
+
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-emerald-50 to-teal-50 text-gray-900">
       {/* Hero */}
@@ -282,41 +357,52 @@ export default function Home() {
       </section>
 
       {/* 条件フォーム */}
-      <section id="plan" className="mx-auto mb-10 max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-8 shadow-sm">
+      <section
+        id="plan"
+        className="mx-auto mb-10 max-w-xl rounded-2xl border border-gray-200 bg-white px-6 py-8 shadow-sm"
+      >
         <form ref={formRef} onSubmit={onSubmit} className="grid gap-5">
           {/* selects …（省略せず使ってOK） */}
           <label className="grid gap-1">
             <span className="text-sm font-medium">どんな一日にしたい？</span>
-            <select name="outcome" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
-            <option value="">指定なし</option>
+            <select
+              name="outcome"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            >
+              <option value="">指定なし</option>
 
-            {/* 体験・気分系 */}
-            <option value="fun">楽しい気分になりたい</option>
-            <option value="refresh">リフレッシュしたい</option>
-            <option value="relax">癒されたい</option>
-            <option value="health">健康的に過ごしたい</option>
-            <option value="achievement">達成感を得たい</option>
+              {/* 体験・気分系 */}
+              <option value="fun">楽しい気分になりたい</option>
+              <option value="refresh">リフレッシュしたい</option>
+              <option value="relax">癒されたい</option>
+              <option value="health">健康的に過ごしたい</option>
+              <option value="achievement">達成感を得たい</option>
 
-            {/* 学び・自己成長系 */}
-            <option value="learning">学び・スキルアップ</option>
-            <option value="hobby">趣味を深めたい・見つけたい</option>
+              {/* 学び・自己成長系 */}
+              <option value="learning">学び・スキルアップ</option>
+              <option value="hobby">趣味を深めたい・見つけたい</option>
 
-            {/* 文化・自然系 */}
-            <option value="art">アート・文学に触れたい</option>
-            <option value="nature">自然を楽しみたい</option>
+              {/* 文化・自然系 */}
+              <option value="art">アート・文学に触れたい</option>
+              <option value="nature">自然を楽しみたい</option>
 
-            {/* 特別体験系 */}
-            <option value="experience">新しい体験をしたい</option>
-            <option value="luxury">贅沢に過ごしたい</option>
+              {/* 特別体験系 */}
+              <option value="experience">新しい体験をしたい</option>
+              <option value="luxury">贅沢に過ごしたい</option>
 
-            {/* 日常改善系 */}
-            <option value="clean">綺麗に整えたい</option>
-            <option value="talk">交流したい／話題を作りたい</option>
-          </select>
+              {/* 日常改善系 */}
+              <option value="clean">綺麗に整えたい</option>
+              <option value="talk">交流したい／話題を作りたい</option>
+            </select>
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium">気分</span>
-            <select name="mood" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <select
+              name="mood"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            >
               <option value="">指定なし</option>
               <option value="relax">のんびり</option>
               <option value="active">アクティブ</option>
@@ -324,7 +410,11 @@ export default function Home() {
           </label>
           <label className="grid gap-1">
             <span className="text-sm font-medium">誰と？</span>
-            <select name="party" defaultValue="" className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200">
+            <select
+              name="party"
+              defaultValue=""
+              className="h-11 rounded-xl border px-3 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+            >
               <option value="">指定なし</option>
               <option value="solo">ひとり</option>
               <option value="family">家族・子ども</option>
@@ -364,7 +454,10 @@ export default function Home() {
             </div>
           </div>
 
-          <button type="submit" className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60">
+          <button
+            type="submit"
+            className="mt-1 w-full sm:w-auto min-w-40 rounded-xl bg-emerald-600 px-5 py-3 font-medium text-white shadow hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-60"
+          >
             {loading ? "考え中…" : "考える"}
           </button>
 
@@ -381,7 +474,7 @@ export default function Home() {
           </Link>
 
           <button
-          type="button"
+            type="button"
             onClick={resetFiltersAndResults}
             className="mx-auto mt-2 block text-sm text-gray-600 underline hover:text-gray-800"
             title="選択した条件と結果をクリアし、タイムラインも空にします"
@@ -389,7 +482,11 @@ export default function Home() {
             選択をクリア
           </button>
 
-          {error && <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">{error}</p>}
+          {error && (
+            <p className="text-sm text-red-600 border border-red-200 bg-red-50 rounded p-3">
+              {error}
+            </p>
+          )}
         </form>
       </section>
 
@@ -402,40 +499,47 @@ export default function Home() {
                 const active = bookmarkedIds.has(i.id);
                 // 名前空間タグを日本語に変換。非対応や dur は null で落とす
                 const jaTags = (i.tags ?? [])
-                .map((t: string) => labelFromTag(t))
-                .filter((v): v is string => !!v);
+                  .map((t: string) => labelFromTag(t))
+                  .filter((v): v is string => !!v);
                 return (
                   <li
                     key={i.id}
                     onClick={() => {
-                      // --- タイムラインに追加する処理 ---
-                      const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
-                      // すでにあるかチェック
-                      if (!list.find((x) => x.id === i.id)) {
-                        list.push(i);
-                        localStorage.setItem("bookmarks", JSON.stringify(list));
-                        setBookmarkedIds(new Set(list.map((x) => x.id)));
-                        setBookmarkCount(list.length);
+                      // --- タイムラインに追加/解除（localStorage: "bookmarks"） ---
+                      const list: Idea[] = JSON.parse(
+                        localStorage.getItem("bookmarks") ?? "[]"
+                      );
+                      const idx = list.findIndex((x) => x.id === i.id);
+                      if (idx === -1) {
+                        list.push({ id: i.id, title: i.title, duration: i.duration ?? 60 });
+                      } else {
+                        list.splice(idx, 1);
                       }
+                      localStorage.setItem("bookmarks", JSON.stringify(list));
+                      setBookmarkedIds(new Set(list.map((x) => x.id)));
+                      setBookmarkCount(list.length);
                     }}
                     className={
                       "relative cursor-pointer rounded-2xl border p-5 shadow-sm transition " +
-                      (bookmarkedIds.has(i.id)
-                        ? "bg-emerald-100 border-emerald-500 text-emerald-900"
-                        : "bg-white border-gray-200 hover:shadow")
+                      (active
+                        ? // 選択時（少し濃いめ & リング）
+                          "bg-emerald-200 border-emerald-600 text-emerald-900 ring-1 ring-emerald-500/40"
+                        : // 非選択
+                          "bg-white border-gray-200 hover:shadow")
                     }
                   >
-                    {/* 右上：ブックマークボタン（Supabase保存用） */}
-                    <div
-                      onClick={(e) => e.stopPropagation()} // ← カードクリックと区別
-                      className="absolute top-3 right-3"
-                    >
+                    {/* 右上：保存（Supabase）。カード選択には影響させない */}
+                    <div onClick={(e) => e.stopPropagation()} className="absolute right-3 top-3">
                       <SaveIdeaButton title={i.title} />
                     </div>
 
                     {/* タイトル */}
                     <h3 className="text-lg font-semibold">{i.title}</h3>
-                    <p className="mt-1 text-sm text-gray-600">
+                    <p
+                      className={
+                        "mt-1 text-sm " + (active ? "text-emerald-900/80" : "text-gray-600")
+                      }
+                    >
                       所要目安：{i.duration ?? 60}分
                     </p>
 
@@ -445,7 +549,12 @@ export default function Home() {
                         {jaTags.map((t) => (
                           <span
                             key={t}
-                            className="text-xs rounded-full border border-gray-300 bg-gray-50 px-2.5 py-1 text-gray-700"
+                            className={
+                              "text-xs rounded-full px-2.5 py-1 border " +
+                              (active
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                : "border-gray-300 bg-gray-50 text-gray-700")
+                            }
                           >
                             {t}
                           </span>
@@ -454,45 +563,45 @@ export default function Home() {
                     )}
                   </li>
                 );
-        })}
-      </ul>
+              })}
+            </ul>
 
-      {/* もっと見る */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={() => fetchIdeas(lastQuery, true)}   // append=true（追加読み込み）
-            disabled={!hasMore || loading}
-            className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {hasMore ? "もっと見る" : "これで終わりです"}
-          </button>
+            {/* もっと見る */}
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => fetchIdeas(lastQuery, true)} // append=true（追加読み込み）
+                disabled={!hasMore || loading}
+                className="rounded-lg bg-emerald-600 px-6 py-2 text-white shadow hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {hasMore ? "もっと見る" : "これで終わりです"}
+              </button>
 
-          {/* 追加入力：下に “TOPへ戻る / タイムラインへ” */}
-          <div className="mt-4 flex items-center justify-center gap-6 text-sm">
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-              className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
-              title="ページの先頭へ戻る"
-              type="button"
-            >
-              TOPへ戻る
-            </button>
-            <Link
-              href="/plan"
-              className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
-              title="タイムラインへ"
-            >
-              タイムラインへ
-            </Link>
-          </div>
-        </div>
-    </>
-  )}
+              {/* 追加入力：下に “TOPへ戻る / タイムラインへ” */}
+              <div className="mt-4 flex items-center justify-center gap-6 text-sm">
+                <button
+                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
+                  title="ページの先頭へ戻る"
+                  type="button"
+                >
+                  TOPへ戻る
+                </button>
+                <Link
+                  href="/plan"
+                  className="underline underline-offset-4 text-gray-700 hover:text-gray-900"
+                  title="タイムラインへ"
+                >
+                  タイムラインへ
+                </Link>
+              </div>
+            </div>
+          </>
+        )}
 
-  {!loading && ideas.length === 0 && (
-    <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>
-  )}
-</section>
+        {!loading && ideas.length === 0 && (
+          <p className="text-sm text-gray-600">「ランダム」か「考える」で候補を表示します。</p>
+        )}
+      </section>
     </main>
   );
 }
