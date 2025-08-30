@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import NavMenu from "@/components/NavMenu"; // ← 追加！
 
 type PlanItem = {
   id: string;
@@ -53,11 +54,13 @@ export default function HistoryPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
+      {/* ヘッダー */}
       <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white">
-            <span>🏠</span> <span>メニュー</span>
-          </Link>
+          {/* 左：メニュー（←ここを NavMenu に差し替え） */}
+          <NavMenu />
+
+          {/* 右：見出し */}
           <h1 className="text-xl sm:text-2xl font-bold">保存したタイムライン</h1>
         </div>
       </header>
@@ -67,7 +70,9 @@ export default function HistoryPage() {
         {error && <p className="text-red-600">{error}</p>}
 
         {!loading && !error && items.length === 0 && (
-          <p className="text-gray-500">まだ保存がありません。タイムラインを作成して保存するとここに表示されます。</p>
+          <p className="text-gray-500">
+            まだ保存がありません。タイムラインを作成して保存するとここに表示されます。
+          </p>
         )}
 
         <ul className="grid gap-3">

@@ -100,7 +100,7 @@ export default function Home() {
       id: i.id,
       title: (i.title ?? "").trim() || "(タイトル未設定)",
       duration: Number.isFinite(i.durationMin as number) ? i.durationMin : 60,
-      tags: (i.tags ?? []).map(stripNs),
+      tags: i.tags ?? [],
     };
   }
   
