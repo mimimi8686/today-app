@@ -1,7 +1,5 @@
 "use client";
-
-import { useEffect, useMemo, useState, useRef } from "react";
-import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { gaEvent } from "@/lib/ga-event";
 import { Trash2, Clock } from "lucide-react";
@@ -228,7 +226,7 @@ export default function PlanPage() {
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           {/* ← 左：フルスクリーンスライドのメニュー */}
           <NavMenu />
-
+          
           {/* → 右：開始/終了ピル（既存のまま） */}
           <div className="flex items-center justify-end gap-2">
             <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">

@@ -46,7 +46,7 @@ export default function NavMenu() {
             aria-hidden="true"
           />
 
-          {/* パネル（全高） */}
+          {/* パネル（全高 / 左から） */}
           <nav
             className="
               absolute inset-y-0 left-0 z-[101]
@@ -76,12 +76,12 @@ export default function NavMenu() {
               </button>
             </div>
 
-            {/* 本体：flex-1 で全高の残り、ここだけスクロール */}
+            {/* 本体：ここだけスクロール */}
             <div className="flex-1 overflow-y-auto">
               <ul>
                 {[
                   { href: "/", label: "TOP" },
-                  { href: "/", label: "アイディア" },   // TOPと同じ
+                  { href: "/", label: "アイディア" },     // TOPと同じ
                   { href: "/history", label: "履歴" },
                 ].map((m, i) => (
                   <li key={m.href}>
