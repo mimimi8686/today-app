@@ -136,15 +136,14 @@ export default function Home() {
   }, []);
 
   // ★ここが“ランダム強化”の修正版
-  // 置き換え：fetchIdeas
+  // 置き換え: fetchIdeas
   async function fetchIdeas(body: Record<string, unknown>, append = false): Promise<void> {
     setLoading(true); setError(null);
 
-    // 既視IDは追加読み込みの時だけ送る
     const excludeIds = append ? Array.from(seenIds) : [];
 
     try {
-      // ランダムの度に違う結果を返させるための “ノンス”
+      // ランダム結果を毎回変えるためのノンス
       const nonce = body?.random ? Math.random().toString(36).slice(2) : undefined;
 
       const res = await fetch("/api/ideas/generate", {
@@ -153,7 +152,7 @@ export default function Home() {
         cache: "no-store",
         body: JSON.stringify({
           ...body,
-          nonce,                  // ← これでサーバ側も毎回別リクエストとして扱われる
+          nonce,
           limit: PAGE_SIZE,
           offset: append ? offset : 0,
           excludeIds,
@@ -162,9 +161,12 @@ export default function Home() {
       if (!res.ok) throw new Error("APIエラー: " + res.status);
 
       const json: ApiResponse = await res.json();
-      let next = json.ideas ?? [];
 
-      // 受け取った結果も最後にもう一度シャッフル
+      // ← ここがポイント：APIの生データ → 画面用に変換
+      const raw = (json.ideas ?? []) as unknown as IdeaFromApi[];
+      let next = raw.map(toUiIdea);   // durationMin→duration、タグの名前空間も剥がす
+
+      // ランダム要求のときはクライアント側でもシャッフル
       if (body?.random) {
         for (let i = next.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -199,6 +201,7 @@ export default function Home() {
   }
 
 
+
   async function onRandomClick() {
     // ランダムは毎回まっさらに（前の重複回避セットやoffsetをリセット）
     setSeenIds(new Set());
@@ -211,28 +214,28 @@ export default function Home() {
   }
   
 
-    // 置き換え：onSubmit
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const conds = data.getAll("cond") as string[];
+   // 置き換え: onSubmit
+    async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+      e.preventDefault();
+      const data = new FormData(e.currentTarget);
+      const conds = data.getAll("cond") as string[];
 
-    const q = {
-      outcome: (data.get("outcome") as string) || "",
-      mood: (data.get("mood") as string) || "",
-      party: (data.get("party") as string) || "",
-      tags: conds,
-      random: false,
-    };
+      const q = {
+        outcome: (data.get("outcome") as string) || "",
+        mood: (data.get("mood") as string) || "",
+        party: (data.get("party") as string) || "",
+        tags: conds,
+        random: false,
+      };
 
-    // 何も選んでなければランダム扱いにする
-    const empty = !q.outcome && !q.mood && !q.party && conds.length === 0;
-    if (empty) q.random = true;
+      // 何も選んでいなければランダム扱い
+      if (!q.outcome && !q.mood && !q.party && conds.length === 0) q.random = true;
 
-    setLastQuery(q);
-    await fetchIdeas(q, false);
-    document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
-  }
+      setLastQuery(q);
+      await fetchIdeas(q, false);
+      document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
+    }
+
 
   // フォームと結果、タイムライン（localStorage）もまとめてクリア
   function resetFiltersAndResults() {
