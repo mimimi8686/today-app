@@ -115,7 +115,7 @@ export default function SavedIdeasPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
+      <header className="px-6 py-4 border-b bg-white shadow-sm">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
           <NavMenu />
           <h1 className="text-xl sm:text-2xl font-bold">保存したアイディア</h1>

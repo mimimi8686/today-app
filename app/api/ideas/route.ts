@@ -1,143 +1,90 @@
 // app/api/ideas/route.ts
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabaseServer } from "@/lib/supabase";
 import { readDeviceId, setDeviceCookie } from "@/lib/device-cookie";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// 端末IDを取得（無ければ発行して Set-Cookie する）
-function ensureDevice(req: Request) {
-  const headers = new Headers();
-  let deviceId = readDeviceId(req);
-  if (!deviceId) {
-    deviceId = crypto.randomUUID();
-    setDeviceCookie(headers, deviceId);
+// Cookie から device_id を取得。無ければ発行して Set-Cookie
+function getOrSetDeviceId(req: Request, headers: Headers) {
+  let id = readDeviceId(req);
+  if (!id) {
+    id = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `dev_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    setDeviceCookie(headers, id);
   }
-  return { deviceId, headers };
+  return id;
 }
 
-// ----------------------
-// 保存（POST）
-// body: { title: string }
-// ----------------------
+// -------- 保存（POST） --------
 export async function POST(req: Request) {
-  const { deviceId, headers } = ensureDevice(req);
-  const supa = supabaseAdmin();
+  const headers = new Headers();
+  const supa = supabaseServer();
+  const deviceId = getOrSetDeviceId(req, headers);
 
   const body = await req.json().catch(() => ({}));
   const title = (body?.title ?? "").trim();
-
   if (!title) {
-    return new NextResponse(JSON.stringify({ error: "title is required" }), {
-      status: 400,
-      headers,
-    });
+    return NextResponse.json({ error: "title is required" }, { status: 400, headers });
   }
 
-  // すでに同じタイトルがあれば作らない（端末ごと）
-  const { data: exists, error: selErr } = await supa
+  // 端末ごとの重複チェック（device_id + title）
+  const { data: found, error: findErr } = await supa
     .from("ideas")
-    .select("id, title, created_at")
+    .select("id")
     .eq("device_id", deviceId)
-    .ilike("title", title) // 大文字小文字を無視した一致
+    .eq("title", title)
     .limit(1)
     .maybeSingle();
 
-  if (selErr) {
-    return new NextResponse(JSON.stringify({ error: selErr.message }), {
-      status: 400,
-      headers,
-    });
+  if (findErr) return NextResponse.json({ error: findErr.message }, { status: 400, headers });
+
+  if (found) {
+    // 既に保存済みでも成功扱いにしておく
+    return NextResponse.json({ ok: true, existed: true, id: found.id }, { status: 200, headers });
   }
 
-  if (exists) {
-    return new NextResponse(
-      JSON.stringify({ duplicated: true, item: exists }),
-      { status: 200, headers }
-    );
-  }
-
-  // 新規作成
   const { data, error } = await supa
     .from("ideas")
-    .insert({
-      user_id: null, // 匿名
-      device_id: deviceId,
-      title,
-      payload: null,
-    })
-    .select("id, title, created_at")
+    .insert({ device_id: deviceId, title })
+    .select()
     .single();
 
-  if (error) {
-    return new NextResponse(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers,
-    });
-  }
-
-  return new NextResponse(JSON.stringify(data), { status: 201, headers });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400, headers });
+  return NextResponse.json(data, { status: 201, headers });
 }
 
-// ----------------------
-// 一覧（GET）— 端末ごとに取得
-// ----------------------
+// -------- 一覧（GET） --------
 export async function GET(req: Request) {
-  const { deviceId, headers } = ensureDevice(req);
-  const supa = supabaseAdmin();
+  const headers = new Headers();
+  const supa = supabaseServer();
+  const deviceId = getOrSetDeviceId(req, headers);
 
   const { data, error } = await supa
     .from("ideas")
-    .select("id, title, created_at")
+    .select("*")
     .eq("device_id", deviceId)
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
-  if (error) {
-    return new NextResponse(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers,
-    });
-  }
-  return new NextResponse(JSON.stringify({ items: data ?? [] }), {
-    status: 200,
-    headers,
-  });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400, headers });
+  return NextResponse.json({ items: data ?? [] }, { headers });
 }
 
-// ----------------------
-// 削除（DELETE）— body: { id }
-// ----------------------
+// -------- 削除（DELETE） --------
 export async function DELETE(req: Request) {
-  const { deviceId, headers } = ensureDevice(req);
-  const supa = supabaseAdmin();
+  const headers = new Headers();
+  const supa = supabaseServer();
+  const deviceId = getOrSetDeviceId(req, headers);
 
   const body = await req.json().catch(() => ({}));
   const id = body?.id;
+  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400, headers });
 
-  if (!id) {
-    return new NextResponse(JSON.stringify({ error: "id is required" }), {
-      status: 400,
-      headers,
-    });
-  }
+  const { error } = await supa.from("ideas").delete().eq("id", id).eq("device_id", deviceId);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400, headers });
 
-  // 端末スコープで安全に削除
-  const { error } = await supa
-    .from("ideas")
-    .delete()
-    .eq("id", id)
-    .eq("device_id", deviceId);
-
-  if (error) {
-    return new NextResponse(JSON.stringify({ error: error.message }), {
-      status: 400,
-      headers,
-    });
-  }
-  return new NextResponse(JSON.stringify({ ok: true }), {
-    status: 200,
-    headers,
-  });
+  return NextResponse.json({ ok: true }, { headers });
 }

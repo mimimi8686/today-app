@@ -293,7 +293,7 @@ function PlanPageInner() {
     <Suspense fallback={null}>
       <main className="min-h-screen bg-gray-50 text-gray-900">
         {/* ヘッダー */}
-        <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
+        <header className="px-6 py-4 border-b bg-white shadow-sm">
           <div className="mx-auto max-w-5xl flex items-center justify-between">
             {/* ← 左：フルスクリーンスライドのメニュー */}
             <NavMenu />
