@@ -4,6 +4,7 @@ import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-p
 import { gaEvent } from "@/lib/ga-event";
 import { Trash2, Clock } from "lucide-react";
 import NavMenu from "@/components/NavMenu";
+import { useSearchParams, useRouter } from "next/navigation";
 
 type Item = { id: string; title: string; duration?: number; tags?: string[] };
 
@@ -22,6 +23,21 @@ function encodePlan(data: unknown) {
       : btoa(unescape(encodeURIComponent(json)));
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+// URLから受け取った Base64(JSON) を安全にデコード
+function decodeAddParam(b64: string) {
+  try {
+    const s = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const json =
+      typeof window === "undefined"
+        ? Buffer.from(s, "base64").toString()
+        : decodeURIComponent(escape(atob(s)));
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 function decodePlan(b64: string) {
   try {
     const s = b64.replace(/-/g, "+").replace(/_/g, "/");
@@ -39,6 +55,8 @@ export default function PlanPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [startTime, setStartTime] = useState("09:00");
   const [loaded, setLoaded] = useState(false);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   // 任意カード入力
   const [newTitle, setNewTitle] = useState("");
@@ -72,6 +90,55 @@ export default function PlanPage() {
   }, []);
 
   // 以後の変更だけ保存
+    // --- /saved からの「追記」受け取り（?add=... or localStorage 'tp:add'）---
+    useEffect(() => {
+      if (!loaded) return; // 初期ロード（?t=...やLS反映）が終わってから処理
+  
+      // 1) URL の ?add=... を優先
+      const addParam = searchParams.get("add");
+      let payload: any = null;
+  
+      if (addParam) {
+        payload = decodeAddParam(addParam);
+      } else {
+        // 2) 予備：同一ルート遷移のために /saved 側が入れたキュー
+        const raw = typeof window !== "undefined" ? localStorage.getItem("tp:add") : null;
+        if (raw) {
+          try { payload = JSON.parse(raw); } catch {}
+        }
+      }
+  
+      if (!payload?.items || !Array.isArray(payload.items) || payload.items.length === 0) {
+        return;
+      }
+  
+      // 受け取ったアイテムを末尾に「追記」
+      setItems((prev) => {
+        // id が被ると DnD の draggableId が衝突するので、被ったら新しい id を振る
+        const prevIds = new Set(prev.map((p) => String(p.id)));
+        const toAppend: Item[] = payload.items.map((i: any) => {
+          const baseId = String(i.id ?? "");
+          const needsNewId = !baseId || prevIds.has(baseId);
+          const newId =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `id_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  
+          return {
+            id: needsNewId ? newId : baseId,
+            title: i.title ?? "",
+            duration: Number.isFinite(i.duration) ? i.duration : 60,
+          };
+        });
+  
+        return [...prev, ...toAppend];
+      });
+  
+      // 一度適用したらクエリとキューを掃除（再発火防止）
+      if (addParam) router.replace("/plan"); // ?add=... を消す
+      if (typeof window !== "undefined") localStorage.removeItem("tp:add");
+    }, [searchParams, loaded, router]);
+  
   useEffect(() => {
     if (!loaded) return;
     localStorage.setItem("bookmarks", JSON.stringify(items));
