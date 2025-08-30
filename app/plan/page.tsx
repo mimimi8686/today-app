@@ -170,14 +170,14 @@ export default function PlanPage() {
       alert("タイムラインをコピーしました（テキスト）");
     }
   }
-  // --- 保存ヘルパー（3件制限。タイトル入力プロンプト付き） ---
+  // 保存（タイトルは任意。空ならサーバーが自動命名）
   async function saveCurrentTimeline(items: Item[], startTime: string) {
     if (items.length === 0) {
       alert("タイムラインが空です");
       return;
     }
-    const title = prompt("タイムライン名を入力してください（例：リラックスデー）")?.trim();
-    if (!title) return;
+
+    const title = prompt("タイムライン名（空でもOKです）")?.trim() || "";
 
     const payload = { items: items.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60 })), startTime };
     const res = await fetch("/api/plans", {
@@ -185,13 +185,17 @@ export default function PlanPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, payload }),
     });
+
     if (res.ok) {
-      alert("保存しました。履歴で確認できます。");
+      if (confirm("保存しました。履歴を開きますか？")) {
+        location.href = "/history";
+      }
     } else {
       const j = await res.json().catch(() => ({}));
       alert(j?.error ?? "保存に失敗しました");
     }
   }
+
 
   // --- 短縮URLを発行して共有するヘルパー ---
   async function onShareClick(items: Item[], startTime: string) {

@@ -1,71 +1,44 @@
-// app/api/plans/route.ts  —— 認証なし・端末Cookieで保存／取得
+// app/api/plans/route.ts
+import { NextResponse } from "next/server";
+import { supabaseServer } from "@/lib/supabase";
+
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-import { createClient } from "@supabase/supabase-js";
-
-function supabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false }, global: { fetch } }
-  );
-}
-
-// device_id cookie
-function readDeviceId(req: Request) {
-  const m = /(?:^|;\s*)device_id=([^;]+)/.exec(req.headers.get("cookie") ?? "");
-  return m?.[1];
-}
-function setDeviceCookie(headers: Headers, deviceId: string, isHttps: boolean) {
-  const base = `device_id=${deviceId}; Path=/; Max-Age=31536000; SameSite=Lax`;
-  headers.append("Set-Cookie", isHttps ? `${base}; Secure` : base);
-}
-
-// ---- 保存（POST）: { title, payload }
+// 保存（タイトルは空でもOK：サーバー側で自動命名）
 export async function POST(req: Request) {
-  const headers = new Headers({ "content-type": "application/json; charset=utf-8" });
-  try {
-    const body = await req.json().catch(() => null);
-    const title = String(body?.title ?? "").trim();
-    const payload = body?.payload ?? null;
-    if (!title || !payload) {
-      return new Response(JSON.stringify({ ok: false, error: "title and payload are required" }), { status: 400, headers });
-    }
+  const supa = supabaseServer();
 
-    const isHttps = new URL(req.url).protocol === "https:";
-    const deviceId = readDeviceId(req) ?? crypto.randomUUID();
-    setDeviceCookie(headers, deviceId, isHttps);
+  const body = await req.json().catch(() => ({}));
+  const rawTitle = (body?.title ?? "").trim();
+  const payload = body?.payload ?? null;
 
-    const supa = supabaseAdmin();
-    const { data, error } = await supa
-      .from("plans")
-      .insert({ device_id: deviceId, title, payload })
-      .select("id")
-      .single();
-
-    if (error) {
-      return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 400, headers });
-    }
-    return new Response(JSON.stringify({ ok: true, id: data?.id }), { status: 201, headers });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), { status: 500, headers });
+  if (!payload?.items || !Array.isArray(payload.items)) {
+    return NextResponse.json({ error: "payload.items is required" }, { status: 400 });
   }
-}
 
-// ---- 一覧（GET）: 端末ごとの履歴を返す
-export async function GET(req: Request) {
-  const deviceId = readDeviceId(req);
-  if (!deviceId) return Response.json({ items: [] });
+  // 空なら自動命名（例：タイムライン 2025/08/30 14:09）
+  const d = new Date();
+  const fallback =
+    `タイムライン ` +
+    `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ` +
+    `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const title = rawTitle || fallback;
 
-  const supa = supabaseAdmin();
   const { data, error } = await supa
     .from("plans")
-    .select("id,title,payload,created_at")
-    .eq("device_id", deviceId)
-    .order("created_at", { ascending: false })
-    .limit(50);
+    .insert({
+      user_id: null, // 開発中は誰でも保存
+      title,
+      payload,
+      device_id: body?.device_id ?? null,
+    })
+    .select()
+    .single();
 
-  if (error) return Response.json({ error: error.message }, { status: 400 });
-  return Response.json({ items: data ?? [] });
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json(data, { status: 201 });
 }
+
+// 一覧（既存のままならそのままでOK。参考）
+// export async function GET(req: Request) { ... }
