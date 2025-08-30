@@ -1,6 +1,6 @@
 // app/api/ideas/route.ts
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase";    // ← service-role を使う
 import { readDeviceId, setDeviceCookie } from "@/lib/device-cookie";
 
 export const runtime = "edge";
@@ -21,7 +21,7 @@ function getOrSetDeviceId(req: Request, headers: Headers) {
 // -------- 保存（POST） --------
 export async function POST(req: Request) {
   const headers = new Headers();
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();    // ← ここ
   const deviceId = getOrSetDeviceId(req, headers);
 
   const body = await req.json().catch(() => ({}));
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 // -------- 一覧（GET） --------
 export async function GET(req: Request) {
   const headers = new Headers();
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();
   const deviceId = getOrSetDeviceId(req, headers);
 
   const { data, error } = await supa
@@ -76,7 +76,7 @@ export async function GET(req: Request) {
 // -------- 削除（DELETE） --------
 export async function DELETE(req: Request) {
   const headers = new Headers();
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();
   const deviceId = getOrSetDeviceId(req, headers);
 
   const body = await req.json().catch(() => ({}));
