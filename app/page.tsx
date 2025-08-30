@@ -161,9 +161,8 @@ export default function Home() {
       if (!res.ok) throw new Error("APIエラー: " + res.status);
 
       const json: ApiResponse = await res.json();
-
-      // 毎回“ガチでランダム”に：random の時は前段でもシャッフル
       const next = (json.ideas ?? []).slice();
+      // ランダム指定なら前段でも絶対シャッフル
       if ((withNonce as any).random) shuffleInPlace(next);
 
       if (append) {
@@ -195,11 +194,16 @@ export default function Home() {
   }
 
   async function onRandomClick() {
+    // ランダムは毎回まっさらに（前の重複回避セットやoffsetをリセット）
+    setSeenIds(new Set());
+    setOffset(0);
+  
     const q = { random: true };
     setLastQuery(q);
     await fetchIdeas(q, false); // append=false（初回）
     document.getElementById("results")?.scrollIntoView({ behavior: "smooth" });
   }
+  
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
