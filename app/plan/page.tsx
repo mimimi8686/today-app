@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { gaEvent } from "@/lib/ga-event";
 import { Trash2, Clock } from "lucide-react";
@@ -289,235 +289,237 @@ export default function PlanPage() {
     alert("共有リンクをコピーしました：\n" + url);
   }
   return (
-    <main className="min-h-screen bg-gray-50 text-gray-900">
-      {/* ヘッダー */}
-      <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-5xl flex items-center justify-between">
-          {/* ← 左：フルスクリーンスライドのメニュー */}
-          <NavMenu />
-          
-          {/* → 右：開始/終了ピル（既存のまま） */}
-          <div className="flex items-center justify-end gap-2">
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-              開始 {startTime}
-            </span>
-            <span className="rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
-              終了 {endTime}
-            </span>
+    <Suspense fallback={null}>
+      <main className="min-h-screen bg-gray-50 text-gray-900">
+        {/* ヘッダー */}
+        <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
+          <div className="mx-auto max-w-5xl flex items-center justify-between">
+            {/* ← 左：フルスクリーンスライドのメニュー */}
+            <NavMenu />
+            
+            {/* → 右：開始/終了ピル（既存のまま） */}
+            <div className="flex items-center justify-end gap-2">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                開始 {startTime}
+              </span>
+              <span className="rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-700">
+                終了 {endTime}
+              </span>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      <section className="mx-auto max-w-5xl px-6 py-6">
-        {/* タイトル行：左=見出し / 右=すべてクリア */}
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold whitespace-nowrap">
-            <Clock className="h-6 w-6 text-emerald-600" />
-            今日のタイムライン
-          </h1>
-          <button
-            onClick={clearAll}
-            className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
-            title="全部消す"
-          >
-            すべてクリア
-          </button>
-        </div>
-
-        {/* 開始時刻＋追加項目＋所要時間 */}
-        <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
-          <label htmlFor="start-time" className="text-sm text-gray-700">
-            開始時刻：
-          </label>
-          <input
-            id="start-time"
-            type="time"
-            value={startTime}
-            onChange={(e) => {
-              const v = e.target.value || "09:00";
-              if (!/^\d{2}:\d{2}$/.test(v)) return;
-              setStartTime(v);
-            }}
-            className="h-10 w-[110px] rounded-md border px-2"
-          />
-
-          <label htmlFor="new-title" className="text-sm text-gray-700">
-            追加項目：
-          </label>
-          <input
-            id="new-title"
-            type="text"
-            placeholder="やること（例：ランチ）"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="h-10 w-full min-w-0 rounded-md border px-3"
-          />
-
-          <label htmlFor="new-duration" className="text-sm text-gray-700">
-            所要時間：
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id="new-duration"
-              type="number"
-              min={1}
-              max={600}
-              value={newDuration}
-              onChange={(e) => setNewDuration(Number(e.target.value))}
-              className="h-10 w-24 rounded-md border px-2"
-            />
+        <section className="mx-auto max-w-5xl px-6 py-6">
+          {/* タイトル行：左=見出し / 右=すべてクリア */}
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold whitespace-nowrap">
+              <Clock className="h-6 w-6 text-emerald-600" />
+              今日のタイムライン
+            </h1>
             <button
-              onClick={addCustomItem}
-              className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+              onClick={clearAll}
+              className="shrink-0 inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
+              title="全部消す"
             >
-              追加
+              すべてクリア
             </button>
           </div>
-        </div>
 
-        {/* タイムライン本体 */}
-        {items.length === 0 ? (
-          <p className="mt-6 text-sm text-gray-500">
-            まだブックマークや予定がありません。TOPで🔖するか、上で追加してね。
-          </p>
-        ) : (
-          <DragDropContext onDragEnd={handleDrag}>
-            <Droppable droppableId="timeline">
-              {(provided) => (
-                <div ref={provided.innerRef} {...provided.droppableProps}>
-                  <ul className="mt-5 grid gap-3">
-                    {timeline.map((item, i) => (
-                      <Draggable
-                        key={String(item.id)}
-                        draggableId={String(item.id)}
-                        index={i}
-                      >
-                        {(prov) => (
-                          <li
-                            ref={prov.innerRef}
-                            {...prov.draggableProps}
-                            {...prov.dragHandleProps}
-                            className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-                          >
-                            {/* 時刻ピル */}
-                            <div className="text-sm font-medium">
-                              <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
-                                {minutesToHHMM(item.from!)} → {minutesToHHMM(item.to!)}
-                              </span>
-                            </div>
+          {/* 開始時刻＋追加項目＋所要時間 */}
+          <div className="mt-3 grid grid-cols-[70px_1fr] items-center gap-x-3 gap-y-2">
+            <label htmlFor="start-time" className="text-sm text-gray-700">
+              開始時刻：
+            </label>
+            <input
+              id="start-time"
+              type="time"
+              value={startTime}
+              onChange={(e) => {
+                const v = e.target.value || "09:00";
+                if (!/^\d{2}:\d{2}$/.test(v)) return;
+                setStartTime(v);
+              }}
+              className="h-10 w-[110px] rounded-md border px-2"
+            />
 
-                            {/* タイトル */}
-                            <h3 className="mt-0.5 text-lg font-semibold">{item.title}</h3>
+            <label htmlFor="new-title" className="text-sm text-gray-700">
+              追加項目：
+            </label>
+            <input
+              id="new-title"
+              type="text"
+              placeholder="やること（例：ランチ）"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="h-10 w-full min-w-0 rounded-md border px-3"
+            />
 
-                            {/* 操作 */}
-                            <div className="mt-2 flex items-center justify-end gap-3">
-                              <label className="text-xs text-gray-600">
-                                所要（分）
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={600}
-                                  value={item.duration ?? 60}
-                                  onChange={(e) =>
-                                    updateDuration(i, Number(e.target.value))
-                                  }
-                                  className="ml-2 h-9 w-24 rounded-md border px-2"
-                                />
-                              </label>
-                              <button
-                                onClick={() => removeItem(i)}
-                                className="rounded-full border p-2 hover:bg-gray-50"
-                                title="削除"
-                              >
-                                <Trash2 className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </li>
-                        )}
-                      </Draggable>
-                    ))}
-                  </ul>
+            <label htmlFor="new-duration" className="text-sm text-gray-700">
+              所要時間：
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id="new-duration"
+                type="number"
+                min={1}
+                max={600}
+                value={newDuration}
+                onChange={(e) => setNewDuration(Number(e.target.value))}
+                className="h-10 w-24 rounded-md border px-2"
+              />
+              <button
+                onClick={addCustomItem}
+                className="h-10 shrink-0 rounded-md bg-emerald-600 px-4 font-medium text-white hover:bg-emerald-700"
+              >
+                追加
+              </button>
+            </div>
+          </div>
 
-                  {provided.placeholder}
+          {/* タイムライン本体 */}
+          {items.length === 0 ? (
+            <p className="mt-6 text-sm text-gray-500">
+              まだブックマークや予定がありません。TOPで🔖するか、上で追加してね。
+            </p>
+          ) : (
+            <DragDropContext onDragEnd={handleDrag}>
+              <Droppable droppableId="timeline">
+                {(provided) => (
+                  <div ref={provided.innerRef} {...provided.droppableProps}>
+                    <ul className="mt-5 grid gap-3">
+                      {timeline.map((item, i) => (
+                        <Draggable
+                          key={String(item.id)}
+                          draggableId={String(item.id)}
+                          index={i}
+                        >
+                          {(prov) => (
+                            <li
+                              ref={prov.innerRef}
+                              {...prov.draggableProps}
+                              {...prov.dragHandleProps}
+                              className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                            >
+                              {/* 時刻ピル */}
+                              <div className="text-sm font-medium">
+                                <span className="inline-flex items-center rounded-md border border-emerald-100 bg-emerald-50/70 px-2 py-0.5 text-emerald-700">
+                                  {minutesToHHMM(item.from!)} → {minutesToHHMM(item.to!)}
+                                </span>
+                              </div>
 
-                  {/* 終了フッター（Droppableコンテナ内のままでOK） */}
-                  <div className="mt-6 flex items-center">
-                    <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
-                    <div className="mx-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700">
-                      <Clock className="h-4 w-4" />
-                      <span className="font-medium">終了 {endTime}</span>
-                      <span className="hidden sm:inline text-sky-700/80">
-                        （合計 {totalMinutes}分）
-                      </span>
+                              {/* タイトル */}
+                              <h3 className="mt-0.5 text-lg font-semibold">{item.title}</h3>
+
+                              {/* 操作 */}
+                              <div className="mt-2 flex items-center justify-end gap-3">
+                                <label className="text-xs text-gray-600">
+                                  所要（分）
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={600}
+                                    value={item.duration ?? 60}
+                                    onChange={(e) =>
+                                      updateDuration(i, Number(e.target.value))
+                                    }
+                                    className="ml-2 h-9 w-24 rounded-md border px-2"
+                                  />
+                                </label>
+                                <button
+                                  onClick={() => removeItem(i)}
+                                  className="rounded-full border p-2 hover:bg-gray-50"
+                                  title="削除"
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </button>
+                              </div>
+                            </li>
+                          )}
+                        </Draggable>
+                      ))}
+                    </ul>
+
+                    {provided.placeholder}
+
+                    {/* 終了フッター（Droppableコンテナ内のままでOK） */}
+                    <div className="mt-6 flex items-center">
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200" />
+                      <div className="mx-3 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-700">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">終了 {endTime}</span>
+                        <span className="hidden sm:inline text-sky-700/80">
+                          （合計 {totalMinutes}分）
+                        </span>
+                      </div>
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-300 via-gray-200 to-transparent" />
                     </div>
-                    <div className="h-px flex-1 bg-gradient-to-r from-gray-300 via-gray-200 to-transparent" />
                   </div>
+                )}
+              </Droppable>
+            </DragDropContext>
+          )}
+
+          {/* 共有フッター */}
+            <div className="mx-auto max-w-5xl px-6">
+              <div className="mt-8">
+                <div className="mb-3 text-center text-sm text-gray-500">
+                  友だちや家族と予定を共有しよう！
                 </div>
-              )}
-            </Droppable>
-          </DragDropContext>
-        )}
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {/* 保存 */}
+                  <button
+                    onClick={async () => { await saveCurrentTimeline(items, startTime); }}
+                    className="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-emerald-700 hover:bg-emerald-100"
+                    title="タイムラインを保存"
+                  >
+                    保存
+                  </button>
 
-        {/* 共有フッター */}
-          <div className="mx-auto max-w-5xl px-6">
-            <div className="mt-8">
-              <div className="mb-3 text-center text-sm text-gray-500">
-                友だちや家族と予定を共有しよう！
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {/* 保存 */}
-                <button
-                  onClick={async () => { await saveCurrentTimeline(items, startTime); }}
-                  className="inline-flex items-center rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-emerald-700 hover:bg-emerald-100"
-                  title="タイムラインを保存"
-                >
-                  保存
-                </button>
+                  {/* 共有 */}
+                    <button
+                      onClick={async () => {
+                        if (items.length === 0) {
+                          alert("タイムラインが空です");
+                          return;
+                        }
+                        const t = encodePlan({ items, startTime });
+                        const url = `${location.origin}/plan?t=${t}`;
+                        await navigator.clipboard.writeText(url);
+                        alert("共有リンクをコピーしました！");
+                        gaEvent("share_timeline", { source: "plan_page" }); // ← この行を追加！
+                      }}
+                      className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
+                      title="共有リンクをコピー"
+                    >
+                      共有
+                    </button>
 
-                {/* 共有 */}
+
+                  {/* コピー */}
                   <button
                     onClick={async () => {
                       if (items.length === 0) {
                         alert("タイムラインが空です");
                         return;
                       }
-                      const t = encodePlan({ items, startTime });
-                      const url = `${location.origin}/plan?t=${t}`;
-                      await navigator.clipboard.writeText(url);
-                      alert("共有リンクをコピーしました！");
-                      gaEvent("share_timeline", { source: "plan_page" }); // ← この行を追加！
+                      await copyTimelineAsText();
+                      gaEvent("copy_timeline", { source: "plan_page" });
                     }}
-                    className="inline-flex items-center rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-amber-700 hover:bg-amber-100"
-                    title="共有リンクをコピー"
+                    className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    title="テキストでコピー"
                   >
-                    共有
+                    コピー
                   </button>
-
-
-                {/* コピー */}
-                <button
-                  onClick={async () => {
-                    if (items.length === 0) {
-                      alert("タイムラインが空です");
-                      return;
-                    }
-                    await copyTimelineAsText();
-                    gaEvent("copy_timeline", { source: "plan_page" });
-                  }}
-                  className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
-                  title="テキストでコピー"
-                >
-                  コピー
-                </button>
+                </div>
               </div>
             </div>
-          </div>
-          
-      </section>
-      {/* コピーライト */}
-      <footer className="mt-12 py-6 text-center text-sm text-gray-400">
-        ©2025 rai-rai
-      </footer>
-    </main>
+            
+        </section>
+        {/* コピーライト */}
+        <footer className="mt-12 py-6 text-center text-sm text-gray-400">
+          ©2025 rai-rai
+        </footer>
+      </main>
+    </Suspense>
   );
 }
