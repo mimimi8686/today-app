@@ -1,49 +1,42 @@
+// components/SavedIdeaButton.tsx
 "use client";
+
 import { useState } from "react";
 
-type Props = {
-  title: string;
-  tags?: string[];
-  durationMin?: number;
-};
-
-export default function SaveIdeaButton({ title, tags = [], durationMin = 60 }: Props) {
+export default function SavedIdeaButton({ title }: { title: string }) {
   const [saving, setSaving] = useState(false);
-  const [ok, setOk] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
-  const onClick = async () => {
+  async function onClick() {
+    if (saving) return;
     setSaving(true);
-    setOk(null);
-    setErr(null);
+    setDone(false);
     try {
       const res = await fetch("/api/ideas", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, tags, durationMin }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+        credentials: "include",
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "failed");
-      setOk("保存しました");
-    } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "エラーが発生しました");
+      const j = await res.json();
+      if (!res.ok) throw new Error(j?.error || "保存に失敗しました");
+      setDone(true);
+      setTimeout(() => setDone(false), 1500);
+    } catch (e: any) {
+      alert(e.message || String(e));
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={onClick}
-        disabled={saving}
-        className="px-3 py-1 rounded bg-black text-white disabled:opacity-50"
-        type="button"
-      >
-        {saving ? "保存中..." : "保存する"}
-      </button>
-      {ok && <span className="text-green-600 text-sm">{ok}</span>}
-      {err && <span className="text-red-600 text-sm">{err}</span>}
-    </div>
+    <button
+      onClick={onClick}
+      className={"rounded-full border p-2 text-gray-600 hover:bg-gray-50 " + (done ? "bg-emerald-50 text-emerald-700" : "")}
+      title="このアイデアを保存"
+      aria-label="このアイデアを保存"
+    >
+      {done ? "✔️" : "🔖"}
+    </button>
   );
 }

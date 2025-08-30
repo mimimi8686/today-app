@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bookmark, Clock, Shuffle } from "lucide-react";
+import { Clock, Shuffle } from "lucide-react";
 import { labelFromTag } from "@/lib/tag-labels";
 import { gaEvent } from "@/lib/ga-event";
 import SaveIdeaButton from "@/components/SaveIdeaButton";
@@ -106,6 +106,14 @@ export default function Home() {
       tags: (i.tags ?? []).map(stripNs),
     };
   }
+  // localStorage "bookmarks" の読み書き（/plan が読む形式）
+  function readBookmarks(): { id: string; title: string; duration?: number }[] {
+    try { return JSON.parse(localStorage.getItem("bookmarks") || "[]"); } catch { return []; }
+  }
+  function writeBookmarks(list: { id: string; title: string; duration?: number }[]) {
+    localStorage.setItem("bookmarks", JSON.stringify(list));
+  }
+
 
   // フィルター state（今回のテストでは未使用でもOK）
   const [error, setError] = useState<string | null>(null);
@@ -224,15 +232,26 @@ export default function Home() {
   }
   
 
-  function toggleBookmark(item: Idea) {
-    const list: Idea[] = JSON.parse(localStorage.getItem("bookmarks") ?? "[]");
+  function handleCardToggle(item: Idea) {
+    const list = readBookmarks();
     const idx = list.findIndex((x) => x.id === item.id);
-    if (idx === -1) list.push(item); else list.splice(idx, 1);
-    localStorage.setItem("bookmarks", JSON.stringify(list));
+  
+    if (idx === -1) {
+      // 追加（duration 初期値は 60 分に揃える）
+      list.push({ id: item.id, title: item.title, duration: item.duration ?? 60 });
+    } else {
+      // 解除
+      list.splice(idx, 1);
+    }
+  
+    writeBookmarks(list);
     setBookmarkedIds(new Set(list.map((x) => x.id)));
     setBookmarkCount(list.length);
+  
+    // 任意のイベント
+    gaEvent("timeline_toggle", { page: "home", ideaId: item.id, selected: idx === -1 });
   }
-
+  
   return (
     <main className="min-h-screen bg-gradient-to-b from-sky-50 via-emerald-50 to-teal-50 text-gray-900">
       {/* Hero */}
@@ -386,9 +405,25 @@ export default function Home() {
                 .map((t: string) => labelFromTag(t))
                 .filter((v): v is string => !!v);
                 return (
-                  <li key={i.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow">
-                    <h3 className="text-lg font-semibold">{i.title}</h3>
+                  <li
+                    key={i.id}
+                    onClick={() => handleCardToggle(i)}
+                    className={
+                      "cursor-pointer rounded-2xl border p-5 shadow-sm transition " +
+                      (bookmarkedIds.has(i.id) ? "border-emerald-400 bg-emerald-50" : "bg-white hover:bg-gray-50")
+                    }
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold">{i.title}</h3>
+
+                      {/* 保存（Supabase）。カード選択に影響させない */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <SaveIdeaButton title={i.title} />
+                      </div>
+                    </div>
+
                     <p className="mt-1 text-sm text-gray-600">所要目安：{i.duration ?? 60}分</p>
+
                     {jaTags.length > 0 && (
                       <div className="mt-2 flex flex-wrap gap-2">
                         {jaTags.map((t) => (
@@ -399,27 +434,19 @@ export default function Home() {
                       </div>
                     )}
 
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {/* 既存：ブックマーク */}
-                    <button
-                      onClick={() => {
-                        toggleBookmark(i);
-                        gaEvent("bookmark_add", { page: "home", ideaId: i.id });
-                      }}
-                      className={"rounded-full border p-2 hover:bg-gray-50 " + (active ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "")}
-                      aria-pressed={active}
-                      title={active ? "ブックマーク済み" : "ブックマーク"}
-                    >
-                      <Bookmark className="h-5 w-5" />
-                    </button>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {/* タイムラインへ。クリックがカードに伝播しないように */}
+                      <Link
+                        href="/plan"
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded-full border p-2 hover:bg-gray-50"
+                        title="タイムラインで見る"
+                      >
+                        <Clock className="h-5 w-5" />
+                      </Link>
+                    </div>
+                  </li>
 
-                    {/* 既存：タイムラインへ */}
-                    <Link href="/plan" className="rounded-full border p-2 hover:bg-gray-50" title="タイムラインで見る">
-                      <Clock className="h-5 w-5" />
-                    </Link>
-                  </div>
-
-            </li>
           );
         })}
       </ul>
