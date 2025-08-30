@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bookmark, Check } from "lucide-react";
 
 type Props = { title: string };
@@ -7,6 +7,28 @@ type Props = { title: string };
 export default function SaveIdeaButton({ title }: Props) {
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // 起動時に「すでに保存済みか」を判定してチェック表示にする
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/ideas", { cache: "no-store" });
+        const text = await res.text();
+        let j: any = {};
+        if (text) { try { j = JSON.parse(text); } catch {} }
+        const list = Array.isArray(j) ? j : Array.isArray(j?.items) ? j.items : [];
+        const exists = list.some(
+          (x: any) =>
+            (x?.title ?? "").trim().toLowerCase() === title.trim().toLowerCase()
+        );
+        if (!canceled && exists) setDone(true);
+      } catch {
+        /* 失敗してもUIはそのまま */
+      }
+    })();
+    return () => { canceled = true; };
+  }, [title]);
 
   async function onClick() {
     if (busy || done) return;
@@ -18,10 +40,17 @@ export default function SaveIdeaButton({ title }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title }),
       });
+      const j = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
         throw new Error(j?.error || "保存に失敗しました");
       }
+
+      // APIが { duplicated: true } を返した時は「すでに保存されています」
+      if (j?.duplicated) {
+        alert("すでに保存されています");
+      }
+      // 正常保存/重複どちらでも done のまま
     } catch (e: any) {
       setDone(false); // 失敗なら元に戻す
       alert(e?.message || "保存に失敗しました");
