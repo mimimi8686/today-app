@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import NavMenu from "@/components/NavMenu";
 
+
 // URLに入れる安全なBase64(JSON)エンコード（plan/page.tsx と同等の簡易版）
 function encodePlan(data: unknown) {
   const json = JSON.stringify(data);
@@ -30,6 +31,8 @@ export default function HistoryPage() {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -79,7 +82,13 @@ export default function HistoryPage() {
     const t = encodePlan({ items, startTime });
     router.push(`/plan?t=${t}`);
   }
-
+  async function saveTitle(p: PlanItem) {
+    const name = editingTitle.trim();
+    setEditingId(null);
+    if (!name || name === p.title) return;
+    await renamePlan({ ...p, title: name });
+    setEditingTitle("");
+  } 
   // ② 名前変更（PATCH /api/plans/:id）
   async function renamePlan(p: PlanItem) {
     const name = prompt("新しいタイトルを入力してください", p.title)?.trim();
@@ -101,15 +110,18 @@ export default function HistoryPage() {
   // ③ 削除（DELETE /api/plans/:id）
   async function deletePlan(p: PlanItem) {
     if (!confirm(`「${p.title}」を削除します。よろしいですか？`)) return;
-    const res = await fetch(`/api/plans/${p.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/plans`, {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: p.id }),
+    });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       alert(j?.error ?? "削除に失敗しました");
       return;
     }
     setItems(prev => prev.filter(x => x.id !== p.id));
-  }
-
+  }  
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
@@ -143,7 +155,29 @@ export default function HistoryPage() {
             >
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-lg font-semibold">{p.title}</h3>
+                {editingId === p.id ? (
+                <input
+                  autoFocus
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  onBlur={() => saveTitle(p)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveTitle(p);
+                    if (e.key === "Escape") { setEditingId(null); setEditingTitle(""); }
+                  }}
+                  className="text-lg font-semibold border rounded px-2 py-1"
+                />
+              ) : (
+                // タイトル部分をクリックしたら編集モードへ
+                <button
+                  className="text-left text-lg font-semibold"
+                  onClick={(e) => { e.stopPropagation(); setEditingId(p.id); setEditingTitle(p.title); }}
+                  title="クリックで名前を編集"
+                >
+                  {p.title}
+                </button>
+              )}
+
                   {/* 開始／件数は非表示にして、保存日時のみ */}
                   <div className="mt-1 text-sm text-gray-600">
                     保存日時：{fmt(p.created_at)}

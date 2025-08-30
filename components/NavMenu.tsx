@@ -51,6 +51,7 @@ export default function NavMenu() {
             { href: "/", label: "TOP" },
             { href: "/", label: "アイディア" },
             { href: "/history", label: "履歴" },
+            { href: "/plan", label: "タイムライン" },
           ].map(m => (
             <li key={m.href} className="border-b first:border-t">
               <Link
