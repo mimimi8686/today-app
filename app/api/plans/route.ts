@@ -15,6 +15,15 @@ export async function POST(req: Request) {
   const rawTitle = (body?.title ?? "").trim();
   const payload = body?.payload ?? null;
 
+  // 不要キー（startTime, count など）を除外
+  if (payload?.startTime) {
+    delete payload.startTime;
+  }
+  if (payload?.count) {
+    delete payload.count;
+  }
+
+
   if (!payload?.items || !Array.isArray(payload.items)) {
     return NextResponse.json({ error: "payload.items is required" }, { status: 400 });
   }

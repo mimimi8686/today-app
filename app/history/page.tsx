@@ -84,11 +84,12 @@ export default function HistoryPage() {
   async function renamePlan(p: PlanItem) {
     const name = prompt("新しいタイトルを入力してください", p.title)?.trim();
     if (!name || name === p.title) return;
-    const res = await fetch(`/api/plans/${p.id}`, {
+    const res = await fetch(`/api/plans`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title: name }),
+      body: JSON.stringify({ id: p.id, title: name }),
     });
+    
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       alert(j?.error ?? "更新に失敗しました");

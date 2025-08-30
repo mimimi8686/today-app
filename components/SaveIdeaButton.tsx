@@ -22,6 +22,8 @@ export default function SaveIdeaButton({ title }: Props) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error || "保存に失敗しました");
       }
+      alert("保存しました！ 履歴ページから確認できます。\n\n👉 /history");
+
     } catch (e: any) {
       // 失敗したら元に戻す
       setDone(false);
