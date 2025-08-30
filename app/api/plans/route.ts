@@ -1,6 +1,8 @@
 // app/api/plans/route.ts
 import { NextResponse } from "next/server";
-import { supabaseServer } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getOrSetDeviceId } from "@/lib/device-cookie";
+
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
@@ -9,24 +11,22 @@ export const dynamic = "force-dynamic";
 // 保存（POST）
 // ----------------------
 export async function POST(req: Request) {
-  const supa = supabaseServer();
+  // RLSに縛られないService Roleで実行（キーはサーバ側でのみ保持）
+  const supa = supabaseAdmin();
+  // 端末IDはサーバ側で強制付与（クライアントから受け取らない）
+  const deviceId = getOrSetDeviceId();
 
   const body = await req.json().catch(() => ({}));
   const rawTitle = (body?.title ?? "").trim();
   const payload = body?.payload ?? null;
 
-  // 不要キー（startTime, count など）を除外
-  if (payload?.startTime) {
-    delete payload.startTime;
-  }
-  if (payload?.count) {
-    delete payload.count;
-  }
-
-
   if (!payload?.items || !Array.isArray(payload.items)) {
     return NextResponse.json({ error: "payload.items is required" }, { status: 400 });
   }
+
+  // 保存対象外のキーは落とす（開始/件数など）
+  if (payload?.startTime) delete payload.startTime;
+  if (payload?.count) delete payload.count;
 
   // 空なら自動命名（例：タイムライン 2025/08/30 14:09）
   const d = new Date();
@@ -39,10 +39,10 @@ export async function POST(req: Request) {
   const { data, error } = await supa
     .from("plans")
     .insert({
-      user_id: null, // 開発中は誰でも保存
+      user_id: null,
       title,
       payload,
-      device_id: body?.device_id ?? null,
+      device_id: deviceId, // ← サーバ側で付与。body.device_id は使わない
     })
     .select()
     .single();
@@ -51,11 +51,12 @@ export async function POST(req: Request) {
   return NextResponse.json(data, { status: 201 });
 }
 
+
 // ----------------------
 // 一覧（GET）
 // ----------------------
 export async function GET() {
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();
 
   const { data, error } = await supa
     .from("plans")
@@ -71,7 +72,7 @@ export async function GET() {
 // 更新（PATCH）
 // ----------------------
 export async function PATCH(req: Request) {
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();
   const body = await req.json().catch(() => ({}));
 
   const id = body?.id;
@@ -96,7 +97,7 @@ export async function PATCH(req: Request) {
 // 削除（DELETE）
 // ----------------------
 export async function DELETE(req: Request) {
-  const supa = supabaseServer();
+  const supa = supabaseAdmin();
   const body = await req.json().catch(() => ({}));
   const id = body?.id;
 

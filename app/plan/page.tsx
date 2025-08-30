@@ -177,13 +177,11 @@ export default function PlanPage() {
       return;
     }
 
-    const title = prompt("タイムライン名（空でもOKです）")?.trim() || "";
-
     const payload = { items: items.map(i => ({ id: i.id, title: i.title, duration: i.duration ?? 60 })), startTime };
     const res = await fetch("/api/plans", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, payload }),
+      body: JSON.stringify({ title: "", payload /* device_id は渡さなくてOK */ }),
     });
 
     if (res.ok) {
