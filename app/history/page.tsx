@@ -1,7 +1,19 @@
+// app/history/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import NavMenu from "@/components/NavMenu";
+
+// URLに入れる安全なBase64(JSON)エンコード（plan/page.tsx と同等の簡易版）
+function encodePlan(data: unknown) {
+  const json = JSON.stringify(data);
+  const b64 =
+    typeof window === "undefined"
+      ? Buffer.from(json).toString("base64")
+      : btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
 
 type PlanItem = {
   id: string;
@@ -13,27 +25,22 @@ type PlanItem = {
   };
 };
 
-// /plan?t=... に渡す安全な Base64(JSON)
-function encodePlan(data: unknown) {
-  const json = JSON.stringify(data);
-  const b64 = typeof window === "undefined" ? Buffer.from(json).toString("base64") : btoa(unescape(encodeURIComponent(json)));
-  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
 export default function HistoryPage() {
+  const router = useRouter();
   const [items, setItems] = useState<PlanItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [tempTitle, setTempTitle] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
         const res = await fetch("/api/plans", { credentials: "include", cache: "no-store" });
         const j = await res.json();
-        if (!res.ok) setError(j?.error ?? "読み込みに失敗しました");
-        else setItems(Array.isArray(j?.items) ? j.items : []);
+        if (!res.ok) {
+          setError(j?.error ?? "読み込みに失敗しました");
+        } else {
+          setItems(Array.isArray(j?.items) ? j.items : []);
+        }
       } catch (e: any) {
         setError(String(e?.message || e));
       } finally {
@@ -51,40 +58,58 @@ export default function HistoryPage() {
       const h = String(d.getHours()).padStart(2, "0");
       const mi = String(d.getMinutes()).padStart(2, "0");
       return `${y}/${m}/${day} ${h}:${mi}`;
-    } catch { return dt; }
-  }
-
-  async function onDelete(id: string) {
-    if (!confirm("このタイムラインを削除しますか？")) return;
-    const res = await fetch(`/api/plans/${id}`, { method: "DELETE" });
-    if (res.ok) setItems(prev => prev.filter(p => p.id !== id));
-    else alert((await res.json().catch(() => ({})))?.error ?? "削除に失敗しました");
-  }
-
-  async function onEditSave(id: string) {
-    const title = tempTitle.trim();
-    if (!title) { alert("タイトルを入力してください"); return; }
-    const res = await fetch(`/api/plans/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setItems(prev => prev.map(p => (p.id === id ? { ...p, title: updated.title } : p)));
-      setEditing(null);
-    } else {
-      alert((await res.json().catch(() => ({})))?.error ?? "更新に失敗しました");
+    } catch {
+      return dt;
     }
+  }
+
+  // ① 開く：/plan?t=... へ遷移
+  function openPlan(p: PlanItem) {
+    const items = (p.payload?.items ?? []).map(i => ({
+      id: i.id, title: i.title, duration: i.duration ?? 60
+    }));
+    const startTime = p.payload?.startTime ?? "09:00";
+    const t = encodePlan({ items, startTime });
+    router.push(`/plan?t=${t}`);
+  }
+
+  // ② 名前変更（PATCH /api/plans/:id）
+  async function renamePlan(p: PlanItem) {
+    const name = prompt("新しいタイトルを入力してください", p.title)?.trim();
+    if (!name || name === p.title) return;
+    const res = await fetch(`/api/plans/${p.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: name }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j?.error ?? "更新に失敗しました");
+      return;
+    }
+    setItems(prev => prev.map(x => x.id === p.id ? { ...x, title: name } : x));
+  }
+
+  // ③ 削除（DELETE /api/plans/:id）
+  async function deletePlan(p: PlanItem) {
+    if (!confirm(`「${p.title}」を削除します。よろしいですか？`)) return;
+    const res = await fetch(`/api/plans/${p.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j?.error ?? "削除に失敗しました");
+      return;
+    }
+    setItems(prev => prev.filter(x => x.id !== p.id));
   }
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
+      {/* ヘッダー */}
       <header className="px-6 py-4 border-b bg-white/70 backdrop-blur">
         <div className="mx-auto max-w-5xl flex items-center justify-between">
-          <Link href="/" className="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 hover:bg-white">
-            <span>🏠</span> <span>メニュー</span>
-          </Link>
+          {/* 左：メニュー */}
+          <NavMenu />
+          {/* 右：見出し */}
           <h1 className="text-xl sm:text-2xl font-bold">保存したタイムライン</h1>
         </div>
       </header>
@@ -94,64 +119,48 @@ export default function HistoryPage() {
         {error && <p className="text-red-600">{error}</p>}
 
         {!loading && !error && items.length === 0 && (
-          <p className="text-gray-500">まだ保存がありません。タイムラインを作成して保存するとここに表示されます。</p>
+          <p className="text-gray-500">
+            まだ保存がありません。タイムラインを作成して保存するとここに表示されます。
+          </p>
         )}
 
         <ul className="grid gap-3">
-          {items.map((p) => {
-            const encoded = encodePlan({ items: p.payload?.items ?? [], startTime: p.payload?.startTime ?? "09:00" });
-            const planUrl = `/plan?t=${encoded}`;
-
-            return (
-              <li key={p.id} className="rounded-xl border bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  {/* 左：タイトル（タップで /plan を開く） */}
-                  <div className="min-w-0">
-                    {editing === p.id ? (
-                      <div className="flex items-center gap-2">
-                        <input
-                          autoFocus
-                          value={tempTitle}
-                          onChange={(e) => setTempTitle(e.target.value)}
-                          className="h-10 w-64 max-w-full rounded-md border px-3"
-                        />
-                        <button onClick={() => onEditSave(p.id)} className="rounded-md bg-emerald-600 px-3 py-2 text-white">保存</button>
-                        <button onClick={() => setEditing(null)} className="rounded-md border px-3 py-2">キャンセル</button>
-                      </div>
-                    ) : (
-                      <>
-                        <Link href={planUrl} className="text-lg font-semibold hover:underline">{p.title}</Link>
-                        <div className="mt-1 text-sm text-gray-600">
-                          保存日時：{fmt(p.created_at)}
-                          {/* 開始・件数の表示は削除（ご要望） */}
-                        </div>
-                      </>
-                    )}
+          {items.map((p) => (
+            <li
+              key={p.id}
+              className="rounded-xl border bg-white p-4 shadow-sm hover:shadow cursor-pointer"
+              onClick={() => openPlan(p)}
+              title="タップで開く"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">{p.title}</h3>
+                  {/* 開始／件数は非表示にして、保存日時のみ */}
+                  <div className="mt-1 text-sm text-gray-600">
+                    保存日時：{fmt(p.created_at)}
                   </div>
-
-                  {/* 右：操作 */}
-                  {editing !== p.id && (
-                    <div className="shrink-0 flex items-center gap-2">
-                      <button
-                        onClick={() => { setTempTitle(p.title); setEditing(p.id); }}
-                        className="rounded-lg border px-3 py-2 hover:bg-gray-50"
-                        title="タイトルを編集"
-                      >
-                        編集
-                      </button>
-                      <button
-                        onClick={() => onDelete(p.id)}
-                        className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-rose-700 hover:bg-rose-100"
-                        title="削除"
-                      >
-                        削除
-                      </button>
-                    </div>
-                  )}
                 </div>
-              </li>
-            );
-          })}
+
+                {/* 行内操作：バブリングを止める */}
+                <div className="shrink-0 flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); renamePlan(p); }}
+                    className="rounded border px-3 py-1 text-sm hover:bg-gray-50"
+                    title="名前を変更"
+                  >
+                    変更
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deletePlan(p); }}
+                    className="rounded border px-3 py-1 text-sm text-rose-700 border-rose-200 hover:bg-rose-50"
+                    title="削除"
+                  >
+                    削除
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
         </ul>
       </section>
     </main>
