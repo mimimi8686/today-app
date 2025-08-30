@@ -98,11 +98,12 @@ export default function Home() {
   function toUiIdea(i: IdeaFromApi): Idea {
     return {
       id: i.id,
-      title: i.title,
-      duration: i.durationMin,
+      title: (i.title ?? "").trim() || "(タイトル未設定)",
+      duration: Number.isFinite(i.durationMin as number) ? i.durationMin : 60,
       tags: (i.tags ?? []).map(stripNs),
     };
   }
+  
   // localStorage "bookmarks" の読み書き（/plan が読む形式）
   function readBookmarks(): { id: string; title: string; duration?: number }[] {
     try {
@@ -163,16 +164,21 @@ export default function Home() {
       const json: ApiResponse = await res.json();
 
       // ← ここがポイント：APIの生データ → 画面用に変換
-      const raw = (json.ideas ?? []) as unknown as IdeaFromApi[];
-      let next = raw.map(toUiIdea);   // durationMin→duration、タグの名前空間も剥がす
+      // …中略…
+        const raw = (json.ideas ?? []) as unknown as IdeaFromApi[];
+        let next = raw.map(toUiIdea);
 
-      // ランダム要求のときはクライアント側でもシャッフル
-      if (body?.random) {
-        for (let i = next.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [next[i], next[j]] = [next[j], next[i]];
+        // タイトルが空など不正形は落とす
+        next = next.filter(it => typeof it.title === "string" && it.title.trim().length > 0);
+
+        // ランダム時はシャッフル
+        if (body?.random) {
+          for (let i = next.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [next[i], next[j]] = [next[j], next[i]];
+          }
         }
-      }
+
 
       if (append) {
         setIdeas(prev => {
@@ -266,8 +272,7 @@ export default function Home() {
     setLastQuery({});
     setError(null);
   }
-  // --- 画面状態の簡易保存（戻ってきても維持）：sessionStorage ---
-  const PERSIST_KEY = "home_state_v1";
+  const PERSIST_KEY = "home_state_v2"; // 旧データを読まないためバージョンUP
 
   function getFormValues() {
     if (!formRef.current) return { outcome: "", mood: "", party: "", cond: [] as string[] };
@@ -545,8 +550,35 @@ export default function Home() {
                       <SaveIdeaButton title={i.title} />
                     </div>
 
-                    {/* タイトルなど既存の中身はそのまま */}
-                    ...
+                    {/* タイトル */}
+                    <h3 className="text-lg font-semibold">
+                      {(i.title ?? "").trim() || "(タイトル未設定)"}
+                    </h3>
+
+                    {/* 所要時間 */}
+                    <p className={"mt-1 text-sm " + (active ? "text-emerald-900/80" : "text-gray-600")}>
+                      所要目安：{Number.isFinite(i.duration as number) ? i.duration : 60}分
+                    </p>
+
+                    {/* タグ */}
+                    {jaTags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {jaTags.map((t) => (
+                          <span
+                            key={t}
+                            className={
+                              "text-xs rounded-full px-2.5 py-1 " +
+                              (active
+                                ? "border border-emerald-300 bg-emerald-50 text-emerald-800"
+                                : "border border-gray-300 bg-gray-50 text-gray-700")
+                            }
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                   </li>
 
                 );
