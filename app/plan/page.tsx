@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { gaEvent } from "@/lib/ga-event";
@@ -51,7 +52,7 @@ function decodePlan(b64: string) {
   }
 }
 
-export default function PlanPage() {
+function PlanPageInner() {
   const [items, setItems] = useState<Item[]>([]);
   const [startTime, setStartTime] = useState("09:00");
   const [loaded, setLoaded] = useState(false);
@@ -523,3 +524,11 @@ export default function PlanPage() {
     </Suspense>
   );
 }
+export default function PlanPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlanPageInner />
+    </Suspense>
+  );
+}
+
