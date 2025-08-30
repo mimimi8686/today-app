@@ -86,26 +86,36 @@ export default function HistoryPage() {
     const name = editingTitle.trim();
     setEditingId(null);
     if (!name || name === p.title) return;
-    await renamePlan({ ...p, title: name });
+    await renamePlan(p, name);
     setEditingTitle("");
   } 
   // ② 名前変更（PATCH /api/plans/:id）
-  async function renamePlan(p: PlanItem) {
-    const name = prompt("新しいタイトルを入力してください", p.title)?.trim();
+  // ▼置き換え
+  async function renamePlan(p: PlanItem, newName?: string) {
+    // newName が来ていなければ（「変更」ボタンからの呼び出し時だけ）prompt を使う
+    const name = (newName ?? prompt("新しいタイトルを入力してください", p.title) ?? "").trim();
+
+    // 編集モードを確実に閉じる
+    setEditingId(null);
+    setEditingTitle("");
+
     if (!name || name === p.title) return;
+
     const res = await fetch(`/api/plans`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: p.id, title: name }),
     });
-    
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       alert(j?.error ?? "更新に失敗しました");
       return;
     }
-    setItems(prev => prev.map(x => x.id === p.id ? { ...x, title: name } : x));
+
+    // 画面の状態を更新
+    setItems(prev => prev.map(x => (x.id === p.id ? { ...x, title: name } : x)));
   }
+
 
   // ③ 削除（DELETE /api/plans/:id）
   async function deletePlan(p: PlanItem) {
